@@ -21,20 +21,12 @@ int main(int argc, char **argv)
     state.init();
 
     Resources res;
-    res.loadTex(state._renderer, "image/player_normal.png");
+    res.load(state);
 
     GameState gs;
-    GameObject player;
-    player.setType(ObjectType::player);
-    player.tex = res._tex;
-    player.acceleration = glm::vec2(200, 200);
-    player.maxSpeedX = 150;
-    player.maxSpeedY = 150;
-    player.position.x = state.logX / 2.0f - 32.0f;
-    player.position.y = state.logY / 2.0f - 32.0f;
-    gs.layers[LAYER_IDX_CHARACTERS].push_back(player);
-
+    createMap(state, gs, res);
     uint64_t prevTime = SDL_GetTicks();
+
     bool running = true;
     while (running)
     {
