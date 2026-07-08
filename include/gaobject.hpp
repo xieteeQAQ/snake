@@ -185,6 +185,7 @@ struct GameObject
     float directionY;
     float angle;
     SDL_Texture *tex;
+    SDL_FRect collider;
 
     GameObject()
         : type(ObjectType::level),
@@ -197,7 +198,8 @@ struct GameObject
           directionX(1.0f),
           directionY(1.0f),
           angle(0.0f),
-          tex(nullptr)
+          tex(nullptr),
+          collider{0}
     {
         bindSkills();
     }
@@ -213,7 +215,8 @@ struct GameObject
           directionX(other.directionX),
           directionY(other.directionY),
           angle(other.angle),
-          tex(other.tex)
+          tex(other.tex),
+          collider{other.collider}
     {
         bindSkills();
     }
@@ -229,7 +232,8 @@ struct GameObject
           directionX(other.directionX),
           directionY(other.directionY),
           angle(other.angle),
-          tex(other.tex)
+          tex(other.tex),
+          collider{other.collider}
     {
         bindSkills();
     }
@@ -249,6 +253,7 @@ struct GameObject
             directionY = other.directionY;
             angle = other.angle;
             tex = other.tex;
+            collider = other.collider;
             bindSkills();
         }
         return *this;
@@ -269,6 +274,7 @@ struct GameObject
             directionY = other.directionY;
             angle = other.angle;
             tex = other.tex;
+            collider = other.collider;
             bindSkills();
         }
         return *this;
