@@ -54,21 +54,33 @@ struct GameState
 {
     std::array<std::vector<GameObject>, 2> layers;
     int playerIndex;
+    SDL_FRect mapViewport;
 
-    GameState()
+    GameState(State &state)
     {
-        playerIndex = 0;
+        playerIndex = -1;
+        mapViewport = {
+            .x = 0, .y = 0,
+            .w = static_cast<float>(state.logW), .h = static_cast<float>(state.logH)
+        };
+    }
+
+    GameObject &player()
+    {
+        return layers[LAYER_IDX_CHARACTERS][playerIndex];
     }
 };
+
+constexpr float TILE_SIZE = 32;
 
 void drawObject(const State &state, GameState &gs, GameObject &obj, float deltaTime)
 {
     const float spriteSize = 128;
     SDL_FRect src{.x = 0, .y = 0, .w = spriteSize, .h = spriteSize};
-    SDL_FRect dst{.x = obj.position.x, .y = obj.position.y, .w = 64, .h = 64};
-    SDL_FPoint cen{.x = 32, .y = 32};
+    SDL_FRect dst{.x = obj.position.x - gs.mapViewport.x, .y = obj.position.y - gs.mapViewport.y, .w = TILE_SIZE, .h = TILE_SIZE};
+    SDL_FPoint cen{.x = TILE_SIZE / 2, .y = TILE_SIZE / 2};
 
-    SDL_FlipMode flipMode = obj.directionX < 0 ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+    SDL_FlipMode flipMode = obj.directionX == -1 ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
     SDL_RenderTextureRotated(state._renderer, obj.tex, &src, &dst, obj.angle, &cen, flipMode);
 }
 
@@ -124,61 +136,67 @@ void checkCollision(const State &state, GameState &gs, Resources &res,
 void update(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime)
 {
     if (obj.type == ObjectType::player)
-    {
-        float mouseX = 0, mouseY = 0;
-        static float destinationX = state.logX / 2.0f;
-        static float destinationY = state.logY / 2.0f;
+    {   
+        float currentDirectionX = 0;
+        float currentDirectionY = 0;
+        if (state.keys[SDL_SCANCODE_W])
+            currentDirectionY -= 1;
+        if (state.keys[SDL_SCANCODE_S])
+            currentDirectionY += 1;
+        if (state.keys[SDL_SCANCODE_A])
+            currentDirectionX -= 1;
+        if (state.keys[SDL_SCANCODE_D])
+            currentDirectionX += 1;
+        
+        obj.directionX = currentDirectionX ? currentDirectionX : obj.directionX;
+        obj.directionY = currentDirectionY ? currentDirectionY : obj.directionY;
 
-        Uint32 mouseButtons = SDL_GetMouseState(&mouseX, &mouseY);
-        if ((mouseButtons & SDL_BUTTON_LMASK) != 0)
-        {
-            SDL_RenderCoordinatesFromWindow(state._renderer, mouseX, mouseY, &destinationX, &destinationY);
-        }
-
-        const float spriteCenterX = obj.position.x + 32.0f;
-        const float spriteCenterY = obj.position.y + 32.0f;
-        const float deltaX = destinationX - spriteCenterX;
-        const float deltaY = destinationY - spriteCenterY;
-
-        const float directionDeadZone = 2.0f;
-        if (deltaX > directionDeadZone)
-            obj.directionX = 1.0f;
-        else if (deltaX < -directionDeadZone)
-            obj.directionX = -1.0f;
-        else
-            obj.directionX = 0.0f;
-
-        if (deltaY > directionDeadZone)
-            obj.directionY = 1.0f;
-        else if (deltaY < -directionDeadZone)
-            obj.directionY = -1.0f;
-        else
-            obj.directionY = 0.0f;
-
-        static Timer rushCD(2.25);
-        static Timer rushDuration(0.25);
         switch (obj.data.player.state)
         {
         case PlayerState::standby:
         {
-            if (obj.velocity.x != 0 || obj.velocity.y != 0)
+            if (currentDirectionX || currentDirectionY)
             {
                 obj.data.player.state = PlayerState::running;
+            }
+            else
+            {
+                if (!currentDirectionX)
+                {
+                    const float factorX = obj.velocity.x > 0 ? -2.5f : 2.5f;
+                    float amountX = obj.acceleration.x * factorX * deltaTime;
+                    obj.velocity.x = std::fabsf(obj.velocity.x) < std::fabsf(amountX) ? 0 : obj.velocity.x + amountX;
+                }
+                if (!currentDirectionY)
+                {
+                    const float factorY = obj.velocity.y > 0 ? -2.5f : 2.5f;
+                    float amountY = obj.acceleration.y * factorY * deltaTime;
+                    obj.velocity.y = std::fabsf(obj.velocity.y) < std::fabsf(amountY) ? 0 : obj.velocity.y + amountY;
+                }
             }
             break;
         }
         case PlayerState::running:
         {
-            if (obj.velocity.x == 0 && obj.velocity.y == 0)
+            if (currentDirectionX || currentDirectionY)
+            {
+                if (!currentDirectionX)
+                {
+                    const float factorX = obj.velocity.x > 0 ? -1.5f : 1.5f;
+                    float amountX = obj.acceleration.x * factorX * deltaTime;
+                    obj.velocity.x = std::fabsf(obj.velocity.x) < std::fabsf(amountX) ? 0 : obj.velocity.x + amountX;
+                }
+                if (!currentDirectionY)
+                {
+                    const float factorY = obj.velocity.y > 0 ? -1.5f : 1.5f;
+                    float amountY = obj.acceleration.y * factorY * deltaTime;
+                    obj.velocity.y = std::fabsf(obj.velocity.y) < std::fabsf(amountY) ? 0 : obj.velocity.y + amountY;
+                }
+            }
+            if (!currentDirectionX && !currentDirectionY)
             {
                 obj.data.player.state = PlayerState::standby;
-                break;
             }
-            if (state.keys[SDL_SCANCODE_J])
-            {
-                obj.data.player.skills.sprint();
-            }
-            break;
         }
         }
 
@@ -189,26 +207,11 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
         SDL_SetRenderDrawColor(state._renderer, 0, 0, 0, 255);
         SDL_RenderDebugText(state._renderer, 0, 0, debug.c_str());
 
-        const float distance = std::sqrtf(deltaX * deltaX + deltaY * deltaY);
-        const float arrivalThreshold = 10.0f;
-        if (std::fabsf(deltaX) > arrivalThreshold)
-        {
-            obj.velocity.x += obj.directionX * obj.acceleration.x * deltaTime;
-            obj.velocity.x = std::fabsf(obj.velocity.x) > obj.maxSpeedX ? obj.directionX * obj.maxSpeedX : obj.velocity.x;
-        }
-        else
-        {
-            obj.velocity.x = 0;
-        }
-        if (std::fabsf(deltaY) > arrivalThreshold)
-        {
-            obj.velocity.y += obj.directionY * obj.acceleration.y * deltaTime;
-            obj.velocity.y = std::fabsf(obj.velocity.y) > obj.maxSpeedY ? obj.directionY * obj.maxSpeedY : obj.velocity.y;
-        }
-        else
-        {
-            obj.velocity.y = 0;
-        }
+        obj.velocity.x += currentDirectionX * obj.acceleration.x * deltaTime;
+        obj.velocity.x = std::fabsf(obj.velocity.x) > obj.maxSpeedX ? currentDirectionX * obj.maxSpeedX : obj.velocity.x;
+
+        obj.velocity.y += currentDirectionY * obj.acceleration.y * deltaTime;
+        obj.velocity.y = std::fabsf(obj.velocity.y) > obj.maxSpeedY ? currentDirectionY * obj.maxSpeedY : obj.velocity.y;
 
         obj.position += obj.velocity * deltaTime;
     }
@@ -227,25 +230,25 @@ constexpr int MAP_COLS = 100;
 void createMap(const State &state, GameState &gs, const Resources &res)
 {
     short map[MAP_ROWS][MAP_COLS] = {
-        {8, 4, 4, 4, 4, 4, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
-        {1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
-        {1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
-        {1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
-        {1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
-        {8, 4, 4, 4, 4, 4, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
-        {1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
-        {1, 0, 0, 0, 9, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
-        {1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
-        {7, 3, 3, 3, 3, 3, 3, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
+        {8, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
+        {7, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
     };
 
     const auto createObject = [&state](int r, int c, SDL_Texture *tex, ObjectType type)
     {
         GameObject o;
         o.setType(type);
-        o.position = glm::vec2(c * 64, state.logH - (MAP_ROWS - r) * 64);
+        o.position = glm::vec2(c * TILE_SIZE, state.logH - (MAP_ROWS - r) * TILE_SIZE);
         o.tex = tex;
-        o.collider = {.x = 0, .y = 0, .w = 64, .h = 64};
+        o.collider = {.x = 0, .y = 0, .w = TILE_SIZE, .h = TILE_SIZE};
         return o;
     };
 
@@ -259,10 +262,11 @@ void createMap(const State &state, GameState &gs, const Resources &res)
             {
                 GameObject player = createObject(r, c, res.tex_standby, ObjectType::player);
                 player.acceleration = glm::vec2(200, 200);
-                player.maxSpeedX = 150;
-                player.maxSpeedY = 150;
-                player.collider = {.x = 16, .y = 8, .w = 32, .h = 47};
+                player.maxSpeedX = 125;
+                player.maxSpeedY = 125;
+                player.collider = {.x = 8, .y = 4, .w = 16, .h = 23};
                 gs.layers[LAYER_IDX_CHARACTERS].push_back(player);
+                gs.playerIndex = gs.layers[LAYER_IDX_CHARACTERS].size() - 1;
                 break;
             }
             case 1:
@@ -316,6 +320,27 @@ void createMap(const State &state, GameState &gs, const Resources &res)
             default:
                 break;
             }
+        }
+    }
+    assert(gs.playerIndex != -1);
+}
+
+void handleKayInput(const State &state, GameState &gs, GameObject &obj, float deltatime,
+    SDL_Scancode key, bool keydown)
+{
+    if (obj.type == ObjectType::player)
+    {
+        const float running_force = 200;
+        switch (key)
+        {
+        case SDL_SCANCODE_F:
+        {
+            if (obj.data.player.state == PlayerState::running)
+                obj.data.player.skills.sprint();
+            break;
+        }
+        default:
+            break;
         }
     }
 }

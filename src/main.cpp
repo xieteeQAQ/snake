@@ -23,7 +23,7 @@ int main(int argc, char **argv)
     Resources res;
     res.load(state);
 
-    GameState gs;
+    GameState gs(state);
     createMap(state, gs, res);
     uint64_t prevTime = SDL_GetTicks();
 
@@ -40,12 +40,29 @@ int main(int argc, char **argv)
         SDL_Event event{0};
         while (SDL_PollEvent(&event))
         {
-            if (event.type == SDL_EVENT_QUIT)
+            switch (event.type)
+            {
+            case SDL_EVENT_QUIT:
+            {
                 running = false;
-            if (event.type == SDL_EVENT_WINDOW_RESIZED)
+                break;
+            }
+            case SDL_EVENT_WINDOW_RESIZED:
             {
                 state.width = event.window.data1;
                 state.height = event.window.data2;
+                break;
+            }
+            case SDL_EVENT_KEY_DOWN:
+            {
+                handleKayInput(state, gs, gs.player(), deltaTime, event.key.scancode, true);
+                break;
+            }
+            case SDL_EVENT_KEY_UP:
+            {
+                handleKayInput(state, gs, gs.player(), deltaTime, event.key.scancode, false);
+                break;
+            }
             }
         }
         SDL_SetRenderDrawColor(state._renderer, 255, 255, 255, 255);
@@ -66,6 +83,9 @@ int main(int argc, char **argv)
                 drawObject(state, gs, obj, deltaTime);
             }
         }
+
+        gs.mapViewport.x = (gs.player().position.x + 64 / 2) - gs.mapViewport.w / 2;
+        gs.mapViewport.y = (gs.player().position.y + 64 / 2) - gs.mapViewport.h / 2;
 
         SDL_RenderPresent(state._renderer);
         SDL_Delay(1 / fps * 1000);
