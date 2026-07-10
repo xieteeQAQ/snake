@@ -50,5 +50,5 @@ struct PlayerSkills
     SDL_Texture *ori_tex = nullptr;
     GameObject *owner = nullptr;
 
-    Skills skill_sprint{2.0f, 0.25f, &PlayerSkills::sprint, SkillState::IS_AVAILABLE};
+    Skills skill_sprint{2.0f, 0.28f, &PlayerSkills::sprint, SkillState::IS_AVAILABLE};
 };
