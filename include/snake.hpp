@@ -8,6 +8,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
+#include <random>
 #include "gaobject.hpp"
 #include "Timer.hpp"
 #include "State.hpp"
@@ -42,10 +43,11 @@ struct Resources
 
 constexpr size_t LAYER_IDX_LEVEL = 0;
 constexpr size_t LAYER_IDX_CHARACTERS = 1;
+constexpr size_t LAYER_IDX_FOOD = 2;
 
 struct GameState
 {
-    std::array<std::vector<GameObject>, 2> layers;
+    std::array<std::vector<GameObject>, 3> layers;
     int playerIndex;
     SDL_FRect mapViewport;
 
@@ -200,7 +202,7 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
                             "\n" + std::to_string(obj.data.player.skills.skill_sprint.state) +
                             "\n" + std::to_string(obj.position.x) + "\n" + std::to_string(obj.position.y);
         SDL_SetRenderDrawColor(state._renderer, 0, 0, 0, 255);
-        SDL_RenderDebugText(state._renderer, 0, 0, debug.c_str());
+        SDL_RenderDebugText(state._renderer, 5, 20, debug.c_str());
 
         obj.velocity.x += currentDirectionX * obj.acceleration.x * deltaTime;
         obj.velocity.x = std::fabsf(obj.velocity.x) > obj.maxSpeedX ? currentDirectionX * obj.maxSpeedX : obj.velocity.x;
@@ -347,4 +349,40 @@ void drawBackground(State &state, GameState &gs, GameObject &obj, SDL_Texture *t
         SDL_FRect dst = {.x = - gs.mapViewport.x, .y = - gs.mapViewport.y, .w = backgroundW * size, .h = backgroundH * size};
         SDL_RenderTextureRotated(state._renderer, tex, &src, &dst, 0, nullptr, SDL_FLIP_NONE);
     }
+}
+
+void generateFood(State &state, GameState &gs, Resources &res, float deltaTime)
+{
+    static Timer interval(3);
+    if (interval.isTimeout())
+    {
+        interval.reset();
+    }
+    else
+    {
+        interval.step(deltaTime);
+        return;
+    }
+
+    std::random_device rd;
+    std::mt19937 generater(rd());
+    std::normal_distribution<float> distributionX(1088.0f, 500.0f);
+    std::normal_distribution<float> distributionY(576.5f, 500.0f);
+
+    float x = 0, y = 0;
+    while (x <= 440 || x >= 1736)
+    {
+        x = distributionX(generater);
+    }
+    while (y <= 156 || y >= 998)
+    {
+        y = distributionY(generater);
+    }
+
+    GameObject food;
+    food.type = ObjectType::food;
+    food.tex = res.food;
+    food.position = glm::vec2(x, y);
+
+    gs.layers[LAYER_IDX_FOOD].push_back(food);
 }
