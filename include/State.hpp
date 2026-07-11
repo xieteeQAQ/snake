@@ -18,7 +18,7 @@ struct State
     int width = 800;
     int height = 600;
     int logW = 640;
-    int logH = 320;
+    int logH = 400;
     float logX = 0;
     float logY = 0;
     const bool *keys;

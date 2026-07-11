@@ -65,7 +65,7 @@ int main(int argc, char **argv)
             }
             }
         }
-        SDL_SetRenderDrawColor(state._renderer, 255, 255, 255, 255);
+        SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
         SDL_RenderClear(state._renderer);
         drawBackground(state, gs, gs.player(), res.background);
 
