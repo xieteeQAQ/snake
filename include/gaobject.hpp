@@ -28,6 +28,12 @@ struct LevelData
 
 struct FoodData
 {
+    int number;
+
+    FoodData() = default;
+    FoodData(int num) : number(num)
+    {
+    }
 };
 
 enum ObjectType

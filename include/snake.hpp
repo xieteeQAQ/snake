@@ -13,6 +13,8 @@
 #include "Timer.hpp"
 #include "State.hpp"
 
+extern bool debug;
+
 struct Resources
 {
     std::vector<SDL_Texture*> texs;
@@ -49,6 +51,8 @@ struct GameState
 {
     std::array<std::vector<GameObject>, 3> layers;
     int playerIndex;
+    int food_count;
+    int eat;
     SDL_FRect mapViewport;
 
     GameState(State &state)
@@ -58,6 +62,8 @@ struct GameState
             .x = 0, .y = 0,
             .w = static_cast<float>(state.logW), .h = static_cast<float>(state.logH)
         };
+        food_count = 0;
+        eat = 0;
     }
 
     GameObject &player()
@@ -108,7 +114,25 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
             }
             break;
         }
-        
+        case ObjectType::food:
+        {
+            std::cout << "碰撞: " << objB.data.food.number << "\n";
+            auto &v = gs.layers[LAYER_IDX_FOOD];
+            int aim = -1;
+            int pre_size = v.size();
+            for (int i = 0; i < v.size(); ++i)
+            {
+                if (v[i].data.food.number == objB.data.food.number)
+                {
+                    aim = i;
+                    break;
+                }
+            }
+            if (aim != -1)
+                v.erase(v.begin() + aim);
+            gs.eat += pre_size - v.size();
+            break;
+        }
         default:
             break;
         }
@@ -197,12 +221,14 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
 
         obj.data.player.skills.updateSkills(deltaTime);
 
-        std::string debug = std::to_string(obj.acceleration.x) +
-                            "\n" + std::to_string(obj.velocity.x) + "\n" + std::to_string(obj.data.player.state) +
-                            "\n" + std::to_string(obj.data.player.skills.skill_sprint.state) +
-                            "\n" + std::to_string(obj.position.x) + "\n" + std::to_string(obj.position.y);
-        SDL_SetRenderDrawColor(state._renderer, 0, 0, 0, 255);
-        SDL_RenderDebugText(state._renderer, 5, 20, debug.c_str());
+        if (debug)
+        {
+            std::string debug_1 = "x: " + std::to_string(obj.position.x) + ", y: " + std::to_string(obj.position.y);
+            std::string debug_2 =  "food_count: " + std::to_string(gs.food_count) + ", eat: " + std::to_string(gs.eat) + " food_vec: " + std::to_string(gs.layers[LAYER_IDX_FOOD].size());
+            SDL_SetRenderDrawColor(state._renderer, 0, 0, 0, 255);
+            SDL_RenderDebugText(state._renderer, 5, 20, debug_1.c_str());
+            SDL_RenderDebugText(state._renderer, 5, 40, debug_2.c_str());
+        }
 
         obj.velocity.x += currentDirectionX * obj.acceleration.x * deltaTime;
         obj.velocity.x = std::fabsf(obj.velocity.x) > obj.maxSpeedX ? currentDirectionX * obj.maxSpeedX : obj.velocity.x;
@@ -244,6 +270,7 @@ void createMap(const State &state, GameState &gs, const Resources &res)
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ,0 ,0 ,0 ,0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ,0 ,0 ,0 ,0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ,0 ,0 ,0 ,0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ,0 ,0 ,0 ,0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ,0 ,0 ,0 ,0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ,0 ,0 ,0 ,0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ,0 ,0 ,0 ,0},
@@ -258,7 +285,6 @@ void createMap(const State &state, GameState &gs, const Resources &res)
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ,0 ,0 ,0 ,0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ,0 ,0 ,0 ,0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ,0 ,0 ,0 ,0},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1 ,0 ,0 ,0 ,0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ,0 ,0 ,0 ,0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0},
@@ -328,9 +354,14 @@ void handleKayInput(const State &state, GameState &gs, GameObject &obj, float de
         {
         case SDL_SCANCODE_F:
         {
-            if (obj.data.player.state == PlayerState::running)
+            if (obj.data.player.state == PlayerState::running && !keydown)
                 obj.data.player.skills.sprint();
             break;
+        }
+        case SDL_SCANCODE_1:
+        {
+            if (keydown)
+                debug = !debug;
         }
         default:
             break;
@@ -351,6 +382,7 @@ void drawBackground(State &state, GameState &gs, GameObject &obj, SDL_Texture *t
     }
 }
 
+
 void generateFood(State &state, GameState &gs, Resources &res, float deltaTime)
 {
     static Timer interval(3);
@@ -368,6 +400,7 @@ void generateFood(State &state, GameState &gs, Resources &res, float deltaTime)
     std::mt19937 generater(rd());
     std::normal_distribution<float> distributionX(1088.0f, 500.0f);
     std::normal_distribution<float> distributionY(576.5f, 500.0f);
+    ++gs.food_count;
 
     float x = 0, y = 0;
     while (x <= 440 || x >= 1736)
@@ -380,9 +413,21 @@ void generateFood(State &state, GameState &gs, Resources &res, float deltaTime)
     }
 
     GameObject food;
-    food.type = ObjectType::food;
+    food.setType(ObjectType::food);
     food.tex = res.food;
     food.position = glm::vec2(x, y);
+    food.collider = {.x = 0, .y = 0, .w = 32, .h = 32};
+    food.data.food.number = gs.food_count;
 
     gs.layers[LAYER_IDX_FOOD].push_back(food);
+
+    if (debug)
+    {
+        std::cout << "foods: ";
+        for (const auto &f : gs.layers[LAYER_IDX_FOOD])
+        {
+            std::cout << f.data.food.number << ", ";
+        }
+        std::cout << "\n";
+    }
 }

@@ -8,6 +8,7 @@
 #include "gaobject.hpp"
 
 int fps = 60;
+bool debug = false;
 
 int main(int argc, char **argv)
 {
@@ -88,6 +89,15 @@ int main(int argc, char **argv)
 
         gs.mapViewport.x = (gs.player().position.x + 64 / 2) - gs.mapViewport.w / 2;
         gs.mapViewport.y = (gs.player().position.y + 64 / 2) - gs.mapViewport.h / 2;
+
+        if (debug)
+        {
+            SDL_FRect rect =  {.x = 3.5, .y = 3.5, .w = 44, .h = 12.5};
+            SDL_RenderFillRect(state._renderer, &rect);
+            SDL_SetRenderDrawColor(state._renderer, 200, 0, 0, 255);
+            SDL_RenderDebugText(state._renderer, 6, 6, "DEBUG");
+            SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
+        }
 
         SDL_RenderPresent(state._renderer);
         SDL_Delay(1 / fps * 1000);
