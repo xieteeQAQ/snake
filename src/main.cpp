@@ -2,12 +2,14 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
+#include <thread>
+#include <chrono>
 #include "State.hpp"
 #include "Food.hpp"
 #include "snake.hpp"
 #include "gaobject.hpp"
 
-int fps = 60;
+// int fps = 60;
 bool debug = false;
 
 int main(int argc, char **argv)
@@ -34,9 +36,6 @@ int main(int argc, char **argv)
         uint64_t nowTime = SDL_GetTicks();
         float deltaTime = (nowTime - prevTime) / 1000.0f;
         prevTime = nowTime;
-
-        if (deltaTime > 0.05f)
-            deltaTime = 0.05f;
 
         SDL_Event event{0};
         while (SDL_PollEvent(&event))
@@ -92,15 +91,12 @@ int main(int argc, char **argv)
 
         if (debug)
         {
-            SDL_FRect rect =  {.x = 3.5, .y = 3.5, .w = 44, .h = 12.5};
-            SDL_RenderFillRect(state._renderer, &rect);
-            SDL_SetRenderDrawColor(state._renderer, 200, 0, 0, 255);
-            SDL_RenderDebugText(state._renderer, 6, 6, "DEBUG");
-            SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
+            writeDebugText(state, gs, deltaTime);
         }
 
         SDL_RenderPresent(state._renderer);
-        SDL_Delay(1 / fps * 1000);
+        // Uint32 delay = (1 / static_cast<float>(fps)) * 1000.0f;
+        // SDL_Delay(delay);
     }
 
     std::cout << "hello world!\n";

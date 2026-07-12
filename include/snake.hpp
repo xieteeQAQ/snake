@@ -9,6 +9,8 @@
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
 #include <random>
+#include <sstream>
+#include <iomanip>
 #include "gaobject.hpp"
 #include "Timer.hpp"
 #include "State.hpp"
@@ -116,7 +118,8 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
         }
         case ObjectType::food:
         {
-            std::cout << "碰撞: " << objB.data.food.number << "\n";
+            if (debug)
+                std::cout << "food碰撞: " << objB.data.food.number << "\n";
             auto &v = gs.layers[LAYER_IDX_FOOD];
             int aim = -1;
             int pre_size = v.size();
@@ -199,13 +202,13 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
         {
             if (currentDirectionX || currentDirectionY)
             {
-                if (!currentDirectionX)
+                if (!currentDirectionX || (currentDirectionX > 0 && obj.velocity.x < 0) || (currentDirectionX < 0 && obj.velocity.x > 0))
                 {
                     const float factorX = obj.velocity.x > 0 ? -1.5f : 1.5f;
                     float amountX = obj.acceleration.x * factorX * deltaTime;
                     obj.velocity.x = std::fabsf(obj.velocity.x) < std::fabsf(amountX) ? 0 : obj.velocity.x + amountX;
                 }
-                if (!currentDirectionY)
+                if (!currentDirectionY || (currentDirectionY > 0 && obj.velocity.y < 0) || (currentDirectionY < 0 && obj.velocity.y > 0))
                 {
                     const float factorY = obj.velocity.y > 0 ? -1.5f : 1.5f;
                     float amountY = obj.acceleration.y * factorY * deltaTime;
@@ -220,15 +223,6 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
         }
 
         obj.data.player.skills.updateSkills(deltaTime);
-
-        if (debug)
-        {
-            std::string debug_1 = "x: " + std::to_string(obj.position.x) + ", y: " + std::to_string(obj.position.y);
-            std::string debug_2 =  "food_count: " + std::to_string(gs.food_count) + ", eat: " + std::to_string(gs.eat) + " food_vec: " + std::to_string(gs.layers[LAYER_IDX_FOOD].size());
-            SDL_SetRenderDrawColor(state._renderer, 0, 0, 0, 255);
-            SDL_RenderDebugText(state._renderer, 5, 20, debug_1.c_str());
-            SDL_RenderDebugText(state._renderer, 5, 40, debug_2.c_str());
-        }
 
         obj.velocity.x += currentDirectionX * obj.acceleration.x * deltaTime;
         obj.velocity.x = std::fabsf(obj.velocity.x) > obj.maxSpeedX ? currentDirectionX * obj.maxSpeedX : obj.velocity.x;
@@ -354,8 +348,14 @@ void handleKayInput(const State &state, GameState &gs, GameObject &obj, float de
         {
         case SDL_SCANCODE_F:
         {
-            if (obj.data.player.state == PlayerState::running && !keydown)
+            static bool keyup = true;
+            if (obj.data.player.state == PlayerState::running && keydown && keyup)
+            {
+                keyup = false;
                 obj.data.player.skills.sprint();
+            }
+            if (!keydown)
+                keyup = true;
             break;
         }
         case SDL_SCANCODE_1:
@@ -385,7 +385,11 @@ void drawBackground(State &state, GameState &gs, GameObject &obj, SDL_Texture *t
 
 void generateFood(State &state, GameState &gs, Resources &res, float deltaTime)
 {
-    static Timer interval(3);
+    static Timer interval(2.5);
+
+    if (gs.layers[LAYER_IDX_FOOD].size() >= 50)
+        return;
+
     if (interval.isTimeout())
     {
         interval.reset();
@@ -398,8 +402,8 @@ void generateFood(State &state, GameState &gs, Resources &res, float deltaTime)
 
     std::random_device rd;
     std::mt19937 generater(rd());
-    std::normal_distribution<float> distributionX(1088.0f, 500.0f);
-    std::normal_distribution<float> distributionY(576.5f, 500.0f);
+    std::normal_distribution<float> distributionX(1088.0f, 400.0f);
+    std::normal_distribution<float> distributionY(576.5f, 400.0f);
     ++gs.food_count;
 
     float x = 0, y = 0;
@@ -430,4 +434,40 @@ void generateFood(State &state, GameState &gs, Resources &res, float deltaTime)
         }
         std::cout << "\n";
     }
+}
+
+void writeDebugText(State &state, GameState &gs, float deltaTime)
+{
+    SDL_SetRenderDrawColor(state._renderer, 0, 0, 0, 255);
+    SDL_FRect rect =  {.x = 5.5, .y = 3.5, .w = 44, .h = 12.5};
+    SDL_RenderFillRect(state._renderer, &rect);
+
+    std::stringstream debug_1;
+    static Timer present_fps(3);
+    static long long cur_fps = 1 / deltaTime;
+    if (present_fps.isTimeout())
+    {
+        present_fps.reset();
+        cur_fps = 1 / deltaTime;
+    }
+    else
+    {
+        present_fps.step(deltaTime);
+    }
+    debug_1 << "fps: " << static_cast<long long>(cur_fps);
+
+    std::stringstream debug_2;
+    debug_2 << std::setiosflags(std::ios::fixed) << std::setprecision(2) << "x: " << gs.player().position.x << ", y: " << gs.player().position.y;
+    
+    std::stringstream debug_3;
+    debug_3 <<  "food_count: " << gs.food_count << ", eat: " << gs.eat << " , food_vec: " << gs.layers[LAYER_IDX_FOOD].size();
+    
+    SDL_RenderDebugText(state._renderer, 7, 20, debug_1.str().c_str());
+    SDL_RenderDebugText(state._renderer, 7, 40, debug_2.str().c_str());
+    SDL_RenderDebugText(state._renderer, 7, 60, debug_3.str().c_str());
+
+    SDL_SetRenderDrawColor(state._renderer, 225, 60, 0, 255);
+    SDL_RenderDebugText(state._renderer, 8, 6, "DEBUG");
+
+    SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
 }
