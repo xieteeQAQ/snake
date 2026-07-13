@@ -3,8 +3,10 @@
 #include <new>
 #include <utility>
 #include <glm/glm.hpp>
+#include <deque>
 #include <SDL3_image/SDL_image.h>
 #include "Skills.hpp"
+#include "Timer.hpp"
 
 enum PlayerState
 {
@@ -12,10 +14,29 @@ enum PlayerState
     standby
 };
 
+enum BodyState
+{
+    activitive
+};
+
+struct BodyData
+{
+    BodyState state;
+    Ruler ruler{5};
+    std::deque<glm::vec2> points{};
+    unsigned int number = 0;
+
+    BodyData() : state(BodyState::activitive)
+    {
+    }
+};
+
 struct PlayerData
 {
     PlayerState state;
     PlayerSkills skills;
+    Ruler ruler{5};
+    std::deque<glm::vec2> points{};
 
     PlayerData() : state(PlayerState::standby)
     {
@@ -36,8 +57,10 @@ struct FoodData
     }
 };
 
+
 enum ObjectType
 {
+    nullobj,
     player,
     body,
     food,
@@ -51,6 +74,7 @@ struct ObjectData
         PlayerData player;
         LevelData level;
         FoodData food;
+        BodyData body;
     };
 
     ObjectType kind;
@@ -69,6 +93,8 @@ struct ObjectData
         case ObjectType::food:
             new (&food) FoodData();
             break;
+        case ObjectType::body:
+            new (&body) BodyData();
         case ObjectType::level:
         default:
             new (&level) LevelData();
@@ -86,6 +112,9 @@ struct ObjectData
         case ObjectType::food:
             new (&food) FoodData(other.food);
             break;
+        case ObjectType::body:
+            new (&body) BodyData(other.body);
+            break;
         case ObjectType::level:
         default:
             new (&level) LevelData(other.level);
@@ -102,6 +131,9 @@ struct ObjectData
             break;
         case ObjectType::food:
             new (&food) FoodData(std::move(other.food));
+            break;
+        case ObjectType::body:
+            new (&body) BodyData(std::move(other.body));
             break;
         case ObjectType::level:
         default:
@@ -123,6 +155,9 @@ struct ObjectData
                 break;
             case ObjectType::food:
                 new (&food) FoodData(other.food);
+                break;
+            case ObjectType::body:
+                new (&body) BodyData(other.body);
                 break;
             case ObjectType::level:
             default:
@@ -146,6 +181,9 @@ struct ObjectData
                 break;
             case ObjectType::food:
                 new (&food) FoodData(std::move(other.food));
+                break;
+            case ObjectType::body:
+                new (&body) BodyData(std::move(other.body));
                 break;
             case ObjectType::level:
             default:
@@ -171,6 +209,9 @@ private:
             break;
         case ObjectType::food:
             food.~FoodData();
+            break;
+        case ObjectType::body:
+            body.~BodyData();
             break;
         case ObjectType::level:
         default:
@@ -301,6 +342,9 @@ struct GameObject
             break;
         case ObjectType::food:
             data = ObjectData(ObjectType::food);
+            break;
+        case ObjectType::body:
+            data = ObjectData(ObjectType::body);
             break;
         case ObjectType::level:
         default:

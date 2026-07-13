@@ -99,7 +99,7 @@ int main(int argc, char **argv)
         // SDL_Delay(delay);
     }
 
-    std::cout << "hello world!\n";
+    std::cout << "\nhello world!\n";
 
     res.unload();
     state.~State();
