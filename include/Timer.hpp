@@ -40,7 +40,7 @@ public:
     void step(float deltaDistance)
     {
         distance += deltaDistance;
-        if (distance > length)
+        if (distance >= length)
         {
             distance -= length;
             over = true;
@@ -48,18 +48,50 @@ public:
     }
 
     bool isOver() const { return over; };
-    float getTime() const { return distance; };
+    float getDistance() const { return distance; };
     float getLength() const { return length; };
     void reset()
     {
         distance = 0;
         over = false;
     };
-    void setTimeout(bool set) { over = set; };
+    void setOver(bool set) { over = set; };
     void setLength(float _length) { length = _length; };
 
 private:
     float distance;
+    float length;
+    bool over;
+};
+
+class Counter
+{
+public:
+    Counter(float length) : length(length), number(0), over(false) {};
+
+    void step(float deltaNum)
+    {
+        number += deltaNum;
+        if (number >= length)
+        {
+            number -= length;
+            over = true;
+        }
+    }
+
+    bool isOver() const { return over; };
+    float getNumber() const { return number; };
+    float getLength() const { return length; };
+    void reset()
+    {
+        number = 0;
+        over = false;
+    };
+    void setOver(bool set) { over = set; };
+    void setLength(float _length) { length = _length; };
+
+private:
+    float number;
     float length;
     bool over;
 };

@@ -148,12 +148,10 @@ void createBody(const State &state, GameState &gs, Resources &res)
     GameObject pre;
     if (gs.layers[LAYER_IDX_BODY].empty())
     {
-        std::clog << "create body : player\n";
         pre = gs.player();
     }
     else
     {
-        std::clog << "create body : body\n";
         pre = gs.lastBody();
     }
 
@@ -217,7 +215,12 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
         }
         case ObjectType::food:
         {
-            createBody(state, gs, res);
+            gs.player().data.player.grow_counter.step(1);
+            if (gs.player().data.player.grow_counter.isOver())
+            {
+                gs.player().data.player.grow_counter.reset();
+                createBody(state, gs, res);
+            }
 
             auto &v = gs.layers[LAYER_IDX_FOOD];
             int aim = -1;
@@ -380,27 +383,23 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
     {
         if (gs.bodys_changed)
             gs.bodysSort();
-        GameObject *pre;
-        if (obj.data.body.number == 0)
-            pre = &gs.player();
-        else
-            pre = &gs.body(obj.data.body.number - 1);
+        GameObject &pre = obj.data.body.number == 0 ? gs.player() : gs.body(obj.data.body.number - 1);
 
         const float interval = 20;
         float currentDirectionX = 0;
         float currentDirectionY = 0;
 
-        float distanceX = (*pre).position.x - obj.position.x;
-        float distanceY = (*pre).position.y - obj.position.y;
+        float distanceX = pre.position.x - obj.position.x;
+        float distanceY = pre.position.y - obj.position.y;
         float distance = std::sqrt(distanceX * distanceX + distanceY * distanceY);
 
         float p_distanceX = distanceX;
         float p_distanceY = distanceY;
         float p_distance = distance;
 
-        if ((*pre).type == ObjectType::player)
+        if (pre.type == ObjectType::player)
         {
-            auto &p = (*pre).data.player.points;
+            auto &p = pre.data.player.points;
             while (!p.empty())
             {
                 p_distanceX = p[0].x - obj.position.x;
@@ -420,19 +419,21 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
         }
         else
         {
-            auto &p = (*pre).data.body.points;
+            auto &p = pre.data.body.points;
             while (!p.empty())
             {
                 p_distanceX = p[0].x - obj.position.x;
                 p_distanceY = p[0].y - obj.position.y;
                 p_distance = std::sqrt(p_distanceX * p_distanceX + p_distanceY * p_distanceY);
-                if (p_distance <= 5)
+                if (p_distance <= 3)
                 {
                     p.pop_front();
                     continue;
                 }
                 if (p.empty())
                 {
+                    p_distanceX = distanceX;
+                    p_distanceY = distanceY;
                     p_distance = distance;
                 }
                 break;
@@ -686,7 +687,7 @@ void generateFood(State &state, GameState &gs, Resources &res, float deltaTime)
     food.setType(ObjectType::food);
     food.tex = res.food;
     food.position = glm::vec2(x, y);
-    food.collider = {.x = 0, .y = 0, .w = 32, .h = 32};
+    food.collider = {.x = 8, .y = 8.5, .w = 14, .h = 13.5};
     food.data.food.number = gs.food_count;
 
     gs.layers[LAYER_IDX_FOOD].push_back(food);
@@ -718,9 +719,13 @@ void writeDebugText(State &state, GameState &gs, float deltaTime)
     std::stringstream debug_3;
     debug_3 << "food_count: " << gs.food_count << ", eat: " << gs.eat << " , food_vec: " << gs.layers[LAYER_IDX_FOOD].size();
 
+    std::stringstream debug_4;
+    debug_4 << "bodys_amount: " << gs.layers[LAYER_IDX_BODY].size() << ", grow: " << gs.player().data.player.grow_counter.getNumber() << "/" << gs.player().data.player.grow_counter.getLength();
+
     SDL_RenderDebugText(state._renderer, 7, 20, debug_1.str().c_str());
     SDL_RenderDebugText(state._renderer, 7, 40, debug_2.str().c_str());
     SDL_RenderDebugText(state._renderer, 7, 60, debug_3.str().c_str());
+    SDL_RenderDebugText(state._renderer, 7, 80, debug_4.str().c_str());
 
     SDL_SetRenderDrawColor(state._renderer, 225, 60, 0, 255);
     SDL_RenderDebugText(state._renderer, 8, 6, "DEBUG");

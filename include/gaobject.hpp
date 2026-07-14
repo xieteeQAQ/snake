@@ -37,6 +37,7 @@ struct PlayerData
     PlayerSkills skills;
     Ruler ruler{5};
     std::deque<glm::vec2> points{};
+    Counter grow_counter{3};
 
     PlayerData() : state(PlayerState::standby)
     {
