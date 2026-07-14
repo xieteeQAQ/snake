@@ -22,7 +22,7 @@ enum BodyState
 struct BodyData
 {
     BodyState state;
-    Ruler ruler{5};
+    Ruler ruler{32};
     std::deque<glm::vec2> points{};
     unsigned int number = 0;
 
@@ -35,7 +35,7 @@ struct PlayerData
 {
     PlayerState state;
     PlayerSkills skills;
-    Ruler ruler{5};
+    Ruler ruler{32};
     std::deque<glm::vec2> points{};
     Counter grow_counter{3};
 

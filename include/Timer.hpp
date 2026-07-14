@@ -35,33 +35,37 @@ private:
 class Ruler
 {
 public:
-    Ruler(float length) : length(length), distance(0), over(false) {};
+    Ruler(float length) : length(length), distance(0), overCount(0) {};
 
     void step(float deltaDistance)
     {
         distance += deltaDistance;
-        if (distance >= length)
+        while (distance >= length)
         {
             distance -= length;
-            over = true;
+            ++overCount;
         }
     }
 
-    bool isOver() const { return over; };
+    bool isOver() const { return overCount > 0; };
+    void consumeOver()
+    {
+        if (overCount > 0)
+            --overCount;
+    }
     float getDistance() const { return distance; };
     float getLength() const { return length; };
     void reset()
     {
         distance = 0;
-        over = false;
+        overCount = 0;
     };
-    void setOver(bool set) { over = set; };
     void setLength(float _length) { length = _length; };
 
 private:
     float distance;
     float length;
-    bool over;
+    int overCount;
 };
 
 class Counter

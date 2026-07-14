@@ -168,7 +168,7 @@ void createBody(const State &state, GameState &gs, Resources &res)
     body.tex = res.body;
     body.position.x = len > 0 ? pre.position.x - (pre.velocity.x / len) * distance : pre.position.x - pre.directionX * distance;
     body.position.y = len > 0 ? pre.position.y - (pre.velocity.y / len) * distance : pre.position.y - pre.directionY * distance;
-    checkPointEdge(body.position); 
+    checkPointEdge(body.position);
     body.acceleration = glm::vec2{1800, 1800};
     body.maxSpeedX = 1800;
     body.maxSpeedY = 1800;
@@ -369,11 +369,11 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
             float deltaDistance = std::sqrt(dx * dx + dy * dy);
             obj.data.player.ruler.step(deltaDistance);
 
-            if (obj.data.player.ruler.isOver())
+            while (obj.data.player.ruler.isOver())
             {
                 glm::vec2 point = {obj.position.x, obj.position.y};
                 checkPointEdge(point);
-                obj.data.player.ruler.reset();
+                obj.data.player.ruler.consumeOver();
                 obj.data.player.points.push_back(point);
             }
         }
@@ -488,11 +488,11 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
             float deltaDistance = std::sqrt(dx * dx + dy * dy);
             obj.data.body.ruler.step(deltaDistance);
 
-            if (obj.data.body.ruler.isOver())
+            while (obj.data.body.ruler.isOver())
             {
                 glm::vec2 point = {obj.position.x, obj.position.y};
                 checkPointEdge(point);
-                obj.data.body.ruler.reset();
+                obj.data.body.ruler.consumeOver();
                 obj.data.body.points.push_back(point);
             }
         }
@@ -648,7 +648,7 @@ void drawBackground(State &state, GameState &gs, GameObject &obj, SDL_Texture *t
 
 void generateFood(State &state, GameState &gs, Resources &res, float deltaTime)
 {
-    static Timer interval(2.5);
+    static Timer interval(1.5);
 
     if (gs.layers[LAYER_IDX_FOOD].size() >= 50)
         return;
