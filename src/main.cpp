@@ -2,6 +2,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #include <thread>
 #include <chrono>
 #include "State.hpp"
@@ -11,6 +12,7 @@
 
 // int fps = 60;
 bool debug = false;
+bool collision_box = false;
 
 int main(int argc, char **argv)
 {
@@ -20,17 +22,31 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if (!MIX_Init())
+    {
+        std::cerr << "SDL_mixer: init failed\n";
+        return 1;
+    }
+
+    MIX_Mixer *mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
+    if (!mixer)
+    {
+        std::cerr << "SDL_mixer: create mixer failed\n";
+        return 1;
+    }
+
     State state;
     state.init();
 
     Resources res;
-    res.load(state);
+    res.load(state, mixer);
 
     GameState gs(state);
     createMap(state, gs, res);
     uint64_t prevTime = SDL_GetTicks();
 
     bool running = true;
+    res.playBGM(res.Graze_The_Roof);
     while (running)
     {
         uint64_t nowTime = SDL_GetTicks();
@@ -103,6 +119,7 @@ int main(int argc, char **argv)
 
     res.unload();
     state.~State();
+    MIX_DestroyMixer(mixer);
     SDL_Quit();
     return 0;
 }

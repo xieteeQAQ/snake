@@ -16,11 +16,15 @@
 #include "State.hpp"
 
 extern bool debug;
+extern bool collision_box;
 
 struct Resources
 {
     std::vector<SDL_Texture *> texs;
     SDL_Texture *tex_standby, *food, *background, *QAQ, *body;
+
+    std::vector<MIX_Track*> tracks;
+    MIX_Track *Graze_The_Roof;
 
     SDL_Texture *loadTex(SDL_Renderer *renderer, const std::string &filename)
     {
@@ -30,19 +34,44 @@ struct Resources
         return tex;
     }
 
-    void load(State &state)
+    MIX_Track *loadAudio(MIX_Mixer *mixer, const std::string &filename)
+    {
+        MIX_Audio *audio = MIX_LoadAudio(mixer, filename.c_str(), false);
+        MIX_Track *track = MIX_CreateTrack(mixer);
+        MIX_SetTrackAudio(track, audio);
+        tracks.push_back(track);
+        return track;
+    }
+
+    void playBGM(MIX_Track *track)
+    {
+        SDL_PropertiesID props = SDL_CreateProperties();
+        SDL_SetNumberProperty(props, MIX_PROP_PLAY_LOOPS_NUMBER, -1);
+        MIX_SetTrackGain(track, 0.3f); // 30% 音量
+        MIX_PlayTrack(track, props);
+    }
+
+    void load(State &state, MIX_Mixer *mixer)
     {
         tex_standby = loadTex(state._renderer, "image/player_normal.png");
         food = loadTex(state._renderer, "image/otto.png");
         background = loadTex(state._renderer, "image/Frontyard.webp");
         QAQ = loadTex(state._renderer, "image/QAQ.png");
         body = loadTex(state._renderer, "image/body_chicken.png");
+
+        Graze_The_Roof = loadAudio(mixer, "music/Graze_The_Roof.mp3");
     }
 
     void unload()
     {
         for (auto t : texs)
+        {
             SDL_DestroyTexture(t);
+        }
+        for (auto t : tracks)
+        {
+            MIX_DestroyTrack(t);
+        }
     }
 };
 
@@ -141,6 +170,15 @@ void drawObject(const State &state, GameState &gs, GameObject &obj, float deltaT
     else
         flipMode = SDL_FLIP_NONE;
     SDL_RenderTextureRotated(state._renderer, obj.tex, &src, &dst, obj.angle, &cen, flipMode);
+
+    if (debug && collision_box)
+    {
+        SDL_FRect collisionBox = {.x = obj.position.x + obj.collider.x - gs.mapViewport.x, .y = obj.position.y + obj.collider.y - gs.mapViewport.y, .w = obj.collider.w, .h = obj.collider.h};
+        SDL_SetRenderDrawBlendMode(state._renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(state._renderer, 225, 165, 0, 150);
+        SDL_RenderFillRect(state._renderer, &collisionBox);
+        SDL_SetRenderDrawBlendMode(state._renderer, SDL_BLENDMODE_NONE);
+    }
 }
 
 void createBody(const State &state, GameState &gs, Resources &res)
@@ -583,7 +621,7 @@ void createMap(const State &state, GameState &gs, const Resources &res)
                 player.acceleration = glm::vec2(200, 200);
                 player.maxSpeedX = 125;
                 player.maxSpeedY = 125;
-                player.collider = {.x = 5, .y = 1, .w = 23, .h = 35};
+                player.collider = {.x = 5, .y = 0, .w = 23, .h = 31};
                 gs.layers[LAYER_IDX_CHARACTERS].push_back(player);
                 gs.playerIndex = gs.layers[LAYER_IDX_CHARACTERS].size() - 1;
                 break;
@@ -626,6 +664,13 @@ void handleKayInput(const State &state, GameState &gs, GameObject &obj, float de
         {
             if (keydown)
                 debug = !debug;
+            break;
+        }
+        case SDL_SCANCODE_2:
+        {
+            if (keydown && debug)
+                collision_box = !collision_box;
+            break;
         }
         default:
             break;
@@ -698,7 +743,18 @@ void writeDebugText(State &state, GameState &gs, float deltaTime)
     SDL_SetRenderDrawColor(state._renderer, 0, 0, 0, 255);
     SDL_FRect rect = {.x = 5.5, .y = 3.5, .w = 44, .h = 12.5};
     SDL_RenderFillRect(state._renderer, &rect);
+    rect = {.x = 52.5, .y = 3.5, .w = 99, .h = 12.5};
+    SDL_RenderFillRect(state._renderer, &rect);
+    SDL_SetRenderDrawColor(state._renderer, 225, 60, 0, 255);
+    SDL_RenderDebugText(state._renderer, 8, 6, "DEBUG");
 
+    if (collision_box)
+        SDL_SetRenderDrawColor(state._renderer, 225, 165, 0, 255);
+    else
+        SDL_SetRenderDrawColor(state._renderer, 90, 90, 90, 255);
+    SDL_RenderDebugText(state._renderer, 55, 6, "COLLISIONBOX");
+
+    SDL_SetRenderDrawColor(state._renderer, 0, 0, 0, 255);
     std::stringstream debug_1;
     static Timer present_fps(3);
     static long long cur_fps = 1 / deltaTime;
@@ -726,9 +782,6 @@ void writeDebugText(State &state, GameState &gs, float deltaTime)
     SDL_RenderDebugText(state._renderer, 7, 40, debug_2.str().c_str());
     SDL_RenderDebugText(state._renderer, 7, 60, debug_3.str().c_str());
     SDL_RenderDebugText(state._renderer, 7, 80, debug_4.str().c_str());
-
-    SDL_SetRenderDrawColor(state._renderer, 225, 60, 0, 255);
-    SDL_RenderDebugText(state._renderer, 8, 6, "DEBUG");
 
     SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
 }
