@@ -13,6 +13,7 @@
 // int fps = 60;
 bool debug = false;
 bool collision_box = false;
+std::random_device rd;
 
 int main(int argc, char **argv)
 {
@@ -46,7 +47,7 @@ int main(int argc, char **argv)
     uint64_t prevTime = SDL_GetTicks();
 
     bool running = true;
-    res.playBGM(res.Graze_The_Roof);
+    playBGM(res.Graze_The_Roof);
     while (running)
     {
         uint64_t nowTime = SDL_GetTicks();
@@ -71,12 +72,12 @@ int main(int argc, char **argv)
             }
             case SDL_EVENT_KEY_DOWN:
             {
-                handleKayInput(state, gs, gs.player(), deltaTime, event.key.scancode, true);
+                handleKayInput(state, gs, gs.player(), res, deltaTime, event.key.scancode, true);
                 break;
             }
             case SDL_EVENT_KEY_UP:
             {
-                handleKayInput(state, gs, gs.player(), deltaTime, event.key.scancode, false);
+                handleKayInput(state, gs, gs.player(), res, deltaTime, event.key.scancode, false);
                 break;
             }
             }
