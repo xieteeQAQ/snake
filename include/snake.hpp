@@ -22,13 +22,14 @@ extern std::random_device rd;
 
 constexpr size_t GROUP_INDEX_BGM = 0;
 constexpr size_t GROUP_INDEX_SPRING = 1;
+constexpr size_t GROUP_INDEX_EAT = 2;
 struct Resources
 {
     std::vector<SDL_Texture *> texs;
     SDL_Texture *tex_standby, *food, *background, *QAQ, *body;
 
     std::vector<std::vector<MIX_Track*>> tracks;
-    MIX_Track *Graze_The_Roof, *spring_1, *spring_2;
+    MIX_Track *Graze_The_Roof, *spring_1, *spring_2, *eat_1, *eat_2, *eat_3;
 
     SDL_Texture *loadTex(SDL_Renderer *renderer, const std::string &filename)
     {
@@ -57,12 +58,17 @@ struct Resources
 
         std::vector<MIX_Track*> bgm_group;
         std::vector<MIX_Track*> spring_group;
+        std::vector<MIX_Track*> eat_group;
         Graze_The_Roof = loadAudio(mixer, bgm_group, "music/Graze_The_Roof.mp3");
         spring_1 = loadAudio(mixer, spring_group, "music/otto_spring_1.wav");
         spring_2 = loadAudio(mixer, spring_group, "music/otto_spring_2.wav");
+        eat_1 = loadAudio(mixer, eat_group, "music/Eat1.ogg");
+        eat_2 = loadAudio(mixer, eat_group, "music/Eat2.ogg");
+        eat_3 = loadAudio(mixer, eat_group, "music/Eat3.ogg");
 
         tracks.push_back(bgm_group);
         tracks.push_back(spring_group);
+        tracks.push_back(eat_group);
     }
 
     void unload()

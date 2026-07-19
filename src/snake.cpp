@@ -129,6 +129,8 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
             if (aim != -1)
                 v.erase(v.begin() + aim);
             gs.eat += pre_size - v.size();
+
+            playSound(res.tracks[GROUP_INDEX_EAT], -1);
             break;
         }
         default:
@@ -298,7 +300,7 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
                 p_distanceX = p[0].x - obj.position.x;
                 p_distanceY = p[0].y - obj.position.y;
                 p_distance = std::sqrt(p_distanceX * p_distanceX + p_distanceY * p_distanceY);
-                if (p_distance <= 1)
+                if (p_distance <= 5)
                 {
                     p.pop_front();
                     continue;
@@ -318,7 +320,7 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
                 p_distanceX = p[0].x - obj.position.x;
                 p_distanceY = p[0].y - obj.position.y;
                 p_distance = std::sqrt(p_distanceX * p_distanceX + p_distanceY * p_distanceY);
-                if (p_distance <= 1)
+                if (p_distance <= 5)
                 {
                     p.pop_front();
                     continue;
