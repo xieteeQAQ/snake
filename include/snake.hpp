@@ -15,21 +15,29 @@
 #include "gaobject.hpp"
 #include "Timer.hpp"
 #include "State.hpp"
+#include "Animation.hpp"
 
 extern bool debug;
 extern bool collision_box;
 extern std::random_device rd;
+extern float playtime;
 
 constexpr size_t GROUP_INDEX_BGM = 0;
 constexpr size_t GROUP_INDEX_SPRING = 1;
 constexpr size_t GROUP_INDEX_EAT = 2;
 struct Resources
 {
-    std::vector<SDL_Texture *> texs;
-    SDL_Texture *tex_standby, *food, *background, *QAQ, *body;
+    const size_t ANIM_POTATO_GROW = 0;
+    const size_t ANIM_POTATO_IDLE = 1;
+    std::vector<Animation> potatoAnims;
 
-    std::vector<std::vector<MIX_Track*>> tracks;
-    MIX_Track *Graze_The_Roof, *spring_1, *spring_2, *eat_1, *eat_2, *eat_3;
+    std::vector<SDL_Texture *> texs;
+    SDL_Texture *tex_standby, *food, *background, *QAQ, *body, *potato_0, *potato_1, *potato_2, *potato_boom;
+
+    std::vector<std::vector<MIX_Track*>> groups;
+    std::vector<MIX_Track*> tracks;
+    MIX_Track *Graze_The_Roof, *spring_1, *spring_2, *eat_1, *eat_2, *eat_3, *burp, *potato_boom_sound, *planting_sound,
+    *plant_rise;
 
     SDL_Texture *loadTex(SDL_Renderer *renderer, const std::string &filename)
     {
@@ -39,23 +47,32 @@ struct Resources
         return tex;
     }
 
-    MIX_Track *loadAudio(MIX_Mixer *mixer, std::vector<MIX_Track*> &group, const std::string &filename)
+    MIX_Track *loadAudio(MIX_Mixer *mixer, std::vector<MIX_Track*> &vec, const std::string &filename)
     {
         MIX_Audio *audio = MIX_LoadAudio(mixer, filename.c_str(), false);
         MIX_Track *track = MIX_CreateTrack(mixer);
         MIX_SetTrackAudio(track, audio);
-        group.push_back(track);
+        vec.push_back(track);
+        MIX_DestroyAudio(audio);
         return track;
     }
 
     void load(State &state, MIX_Mixer *mixer)
     {
+        potatoAnims.resize(2);
+        potatoAnims[ANIM_POTATO_GROW] = Animation(16, 0.59);
+        potatoAnims[ANIM_POTATO_IDLE] = Animation(16, 0.59);
+
         tex_standby = loadTex(state._renderer, "image/player_normal.png");
         food = loadTex(state._renderer, "image/otto.png");
         background = loadTex(state._renderer, "image/Frontyard.webp");
         QAQ = loadTex(state._renderer, "image/QAQ.png");
         body = loadTex(state._renderer, "image/body_chicken.png");
-
+        potato_0 = loadTex(state._renderer, "image/potato/potato_0.png");
+        potato_1 = loadTex(state._renderer, "image/potato/potato_1.png");
+        potato_2 = loadTex(state._renderer, "image/potato/potato_2.png");
+        potato_boom = loadTex(state._renderer, "image/potato/potato_boom.png");
+        
         std::vector<MIX_Track*> bgm_group;
         std::vector<MIX_Track*> spring_group;
         std::vector<MIX_Track*> eat_group;
@@ -65,10 +82,14 @@ struct Resources
         eat_1 = loadAudio(mixer, eat_group, "music/Eat1.ogg");
         eat_2 = loadAudio(mixer, eat_group, "music/Eat2.ogg");
         eat_3 = loadAudio(mixer, eat_group, "music/Eat3.ogg");
+        burp = loadAudio(mixer, tracks, "music/Burp.ogg");
+        potato_boom_sound = loadAudio(mixer, tracks, "music/potato_boom.mp3");
+        planting_sound = loadAudio(mixer, tracks, "music/planting_sound.mp3");
+        plant_rise = loadAudio(mixer, tracks, "music/plant_rise.mp3");
 
-        tracks.push_back(bgm_group);
-        tracks.push_back(spring_group);
-        tracks.push_back(eat_group);
+        groups.push_back(bgm_group);
+        groups.push_back(spring_group);
+        groups.push_back(eat_group);
     }
 
     void unload()
@@ -77,9 +98,15 @@ struct Resources
         {
             SDL_DestroyTexture(t);
         }
-        for (auto g : tracks)
+        for (auto g : groups)
         {
             for (auto t : g)
+            {
+                MIX_DestroyTrack(t);
+            }
+        }
+        for (auto t : tracks)
+        {
             MIX_DestroyTrack(t);
         }
     }
@@ -89,11 +116,15 @@ constexpr size_t LAYER_IDX_LEVEL = 0;
 constexpr size_t LAYER_IDX_BODY = 1;
 constexpr size_t LAYER_IDX_CHARACTERS = 2;
 constexpr size_t LAYER_IDX_FOOD = 3;
+
+constexpr size_t BULLET_IDX_POTATO = 0;
 struct GameState
 {
     std::array<std::vector<GameObject>, 4> layers;
+    std::array<std::vector<GameObject>, 1> bullets;
     int playerIndex;
     int food_count;
+    int potato_count;
     int eat;
     SDL_FRect mapViewport;
     GameObject n;
@@ -105,6 +136,7 @@ struct GameState
         mapViewport = {
             .x = 0, .y = 0, .w = static_cast<float>(state.logW), .h = static_cast<float>(state.logH)};
         food_count = 0;
+        potato_count = 0;
         eat = 0;
         n.type = ObjectType::nullobj;
         bodys_changed = false;
@@ -166,3 +198,4 @@ void writeDebugText(State &state, GameState &gs, float deltaTime);
 void playBGM(MIX_Track *track);
 void playSound(MIX_Track *track);
 void playSound(std::vector<MIX_Track*> &group, int index);
+void generatePotatoMine(State &state, GameState &gs, Resources &res, float deltaTime);

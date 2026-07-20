@@ -7,6 +7,7 @@
 #include <SDL3_image/SDL_image.h>
 #include "Skills.hpp"
 #include "Timer.hpp"
+#include "Animation.hpp"
 
 enum PlayerState
 {
@@ -17,6 +18,16 @@ enum PlayerState
 enum BodyState
 {
     activitive
+};
+
+enum BulletState
+{
+    inactive, moving, colliding, idle
+};
+
+enum BulletType
+{
+    potatoMine, none
 };
 
 struct BodyData
@@ -58,6 +69,17 @@ struct FoodData
     }
 };
 
+struct bulletData
+{
+    BulletState state;
+    BulletType type;
+    Timer timer;
+    int number;
+
+    bulletData() : state(BulletState::moving), type(BulletType::none) ,timer(0), number(0) {};
+    bulletData(float length) : state(BulletState::moving), type(BulletType::none),timer(length), number(0) {};
+};
+
 
 enum ObjectType
 {
@@ -65,7 +87,8 @@ enum ObjectType
     player,
     body,
     food,
-    level
+    level,
+    bullet
 };
 
 struct ObjectData
@@ -76,6 +99,7 @@ struct ObjectData
         LevelData level;
         FoodData food;
         BodyData body;
+        bulletData bullet;
     };
 
     ObjectType kind;
@@ -96,7 +120,12 @@ struct ObjectData
             break;
         case ObjectType::body:
             new (&body) BodyData();
+            break;
         case ObjectType::level:
+            break;
+        case ObjectType::bullet:
+            new (&bullet) bulletData();
+            break;
         default:
             new (&level) LevelData();
             break;
@@ -117,6 +146,10 @@ struct ObjectData
             new (&body) BodyData(other.body);
             break;
         case ObjectType::level:
+            break;
+        case ObjectType::bullet:
+            new (&bullet) bulletData(other.bullet);
+            break;
         default:
             new (&level) LevelData(other.level);
             break;
@@ -137,6 +170,10 @@ struct ObjectData
             new (&body) BodyData(std::move(other.body));
             break;
         case ObjectType::level:
+            break;
+        case ObjectType::bullet:
+            new (&bullet) bulletData(std::move(other.bullet));
+            break;
         default:
             new (&level) LevelData(std::move(other.level));
             break;
@@ -161,6 +198,10 @@ struct ObjectData
                 new (&body) BodyData(other.body);
                 break;
             case ObjectType::level:
+                break;
+            case ObjectType::bullet:
+                new (&bullet) bulletData(other.bullet);
+                break;
             default:
                 new (&level) LevelData(other.level);
                 break;
@@ -187,6 +228,10 @@ struct ObjectData
                 new (&body) BodyData(std::move(other.body));
                 break;
             case ObjectType::level:
+                break;
+            case ObjectType::bullet:
+                new (&bullet) bulletData(std::move(other.bullet));
+                break;
             default:
                 new (&level) LevelData(std::move(other.level));
                 break;
@@ -215,6 +260,10 @@ private:
             body.~BodyData();
             break;
         case ObjectType::level:
+            break;
+        case ObjectType::bullet:
+            bullet.~bulletData();
+            break;
         default:
             level.~LevelData();
             break;
@@ -232,8 +281,11 @@ struct GameObject
     float directionX;
     float directionY;
     float angle;
+    std::vector<Animation> animation;
+    int currentAnimation;
     SDL_Texture *tex;
     SDL_FRect collider;
+    bool collideable;
 
     GameObject()
         : type(ObjectType::level),
@@ -247,7 +299,9 @@ struct GameObject
           directionY(1.0f),
           angle(0.0f),
           tex(nullptr),
-          collider{0}
+          currentAnimation(-1),
+          collider{0},
+          collideable{true}
     {
         bindSkills();
     }
@@ -264,7 +318,10 @@ struct GameObject
           directionY(other.directionY),
           angle(other.angle),
           tex(other.tex),
-          collider{other.collider}
+          animation(other.animation),
+          currentAnimation(other.currentAnimation),
+          collider{other.collider},
+          collideable{other.collideable}
     {
         bindSkills();
     }
@@ -281,7 +338,10 @@ struct GameObject
           directionY(other.directionY),
           angle(other.angle),
           tex(other.tex),
-          collider{other.collider}
+          animation(other.animation),
+          currentAnimation(other.currentAnimation),
+          collider{other.collider},
+          collideable{other.collideable}
     {
         bindSkills();
     }
@@ -301,7 +361,10 @@ struct GameObject
             directionY = other.directionY;
             angle = other.angle;
             tex = other.tex;
+            animation = other.animation;
+            currentAnimation = other.currentAnimation;
             collider = other.collider;
+            collideable = other.collideable;
             bindSkills();
         }
         return *this;
@@ -322,7 +385,10 @@ struct GameObject
             directionY = other.directionY;
             angle = other.angle;
             tex = other.tex;
+            animation = other.animation;
+            currentAnimation = other.currentAnimation;
             collider = other.collider;
+            collideable = other.collideable;
             bindSkills();
         }
         return *this;
@@ -348,6 +414,10 @@ struct GameObject
             data = ObjectData(ObjectType::body);
             break;
         case ObjectType::level:
+            break;
+        case ObjectType::bullet:
+            data = ObjectData(ObjectType::bullet);
+            break;
         default:
             data = ObjectData(ObjectType::level);
             break;

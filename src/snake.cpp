@@ -6,23 +6,25 @@
 */
 void checkPointEdge(glm::vec2 &point)
 {
-    if (point.x <= 443)
+    if (point.x <= 443 + 2)
         point.x += 3;
-    else if (point.x >= 1732)
+    else if (point.x >= 1732 - 2)
         point.x -= 3;
-    if (point.y <= 159)
+    if (point.y <= 159 + 2)
         point.y += 3;
-    else if (point.y >= 988)
+    else if (point.y >= 988 - 2)
         point.y -= 3;
 }
 
 constexpr float TILE_SIZE = 32;
 void drawObject(const State &state, GameState &gs, GameObject &obj, float deltaTime)
 {
-    if (!obj.tex)
-        std::cerr << "null tex\n";
+    if (obj.type == ObjectType::bullet && obj.data.bullet.state == BulletState::inactive)
+        return;
+
     const float spriteSize = 128;
-    SDL_FRect src{.x = 0, .y = 0, .w = spriteSize, .h = spriteSize};
+    float srcX = obj.currentAnimation != -1 ? obj.animation[obj.currentAnimation].currentFrame() * spriteSize : 0.0f;
+    SDL_FRect src{.x = srcX, .y = 0, .w = spriteSize, .h = spriteSize};
     SDL_FRect dst{.x = obj.position.x - gs.mapViewport.x, .y = obj.position.y - gs.mapViewport.y, .w = TILE_SIZE, .h = TILE_SIZE};
     SDL_FPoint cen{.x = TILE_SIZE / 2, .y = TILE_SIZE / 2};
 
@@ -33,7 +35,7 @@ void drawObject(const State &state, GameState &gs, GameObject &obj, float deltaT
         flipMode = SDL_FLIP_NONE;
     SDL_RenderTextureRotated(state._renderer, obj.tex, &src, &dst, obj.angle, &cen, flipMode);
 
-    if (debug && collision_box)
+    if (debug && collision_box && obj.collideable)
     {
         SDL_FRect collisionBox = {.x = obj.position.x + obj.collider.x - gs.mapViewport.x, .y = obj.position.y + obj.collider.y - gs.mapViewport.y, .w = obj.collider.w, .h = obj.collider.h};
         SDL_SetRenderDrawBlendMode(state._renderer, SDL_BLENDMODE_BLEND);
@@ -113,25 +115,45 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
             {
                 gs.player().data.player.grow_counter.reset();
                 createBody(state, gs, res);
+                playSound(res.burp);
+            }
+            else
+            {
+                playSound(res.groups[GROUP_INDEX_EAT], -1);
             }
 
+            // find the food object and delect it
             auto &v = gs.layers[LAYER_IDX_FOOD];
-            int aim = -1;
-            int pre_size = v.size();
             for (int i = 0; i < v.size(); ++i)
             {
                 if (v[i].data.food.number == objB.data.food.number)
                 {
-                    aim = i;
+                    v[i].collideable = false;
+                    v[i].tex = nullptr;
+                    gs.eat += 1;
                     break;
                 }
             }
-            if (aim != -1)
-                v.erase(v.begin() + aim);
-            gs.eat += pre_size - v.size();
-
-            playSound(res.tracks[GROUP_INDEX_EAT], -1);
             break;
+        }
+        case ObjectType::bullet:
+        {
+            switch (objB.data.bullet.type)
+            {
+                case BulletType::potatoMine:
+                {
+                    objB.tex = res.potato_boom;
+                    objB.collideable = false;
+                    objB.data.bullet.timer.reset();
+                    objB.data.bullet.timer.setLength(3); // the "boom" duration is 3s
+                    objB.currentAnimation = -1;
+                    gs.potato_count -= 1;
+                    playSound(res.potato_boom_sound);
+                    break;
+                }
+                default:
+                    break;
+            }
         }
         default:
             break;
@@ -170,6 +192,9 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
 void checkCollision(const State &state, GameState &gs, Resources &res,
                     GameObject &a, GameObject &b, float deltaTime)
 {
+    if (!a.collideable || !b.collideable)
+        return;
+
     SDL_FRect rectA{.x = a.position.x + a.collider.x, .y = a.position.y + a.collider.y, .w = a.collider.w, .h = a.collider.h};
     SDL_FRect rectB{.x = b.position.x + b.collider.x, .y = b.position.y + b.collider.y, .w = b.collider.w, .h = b.collider.h};
     SDL_FRect rectC{0};
@@ -393,11 +418,70 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
         }
     }
 
+    if (obj.type == ObjectType::bullet)
+    {
+        switch (obj.data.bullet.type)
+        {
+        case BulletType::potatoMine:
+        {
+
+            if (obj.tex == res.potato_boom)
+            {
+                if (obj.data.bullet.timer.isTimeout())
+                {
+                    obj.tex = nullptr;
+                    obj.data.bullet.state = BulletState::inactive;
+                }
+                else
+                {
+                    obj.data.bullet.timer.step(deltaTime);
+                }
+                break;
+            }
+            else if (obj.currentAnimation == res.ANIM_POTATO_IDLE)
+            {
+                break;
+            }
+            else if (obj.currentAnimation == res.ANIM_POTATO_GROW)
+            {
+                if (obj.animation[obj.currentAnimation].isDone())
+                {
+                    obj.currentAnimation = res.ANIM_POTATO_IDLE;
+                    obj.tex = res.potato_2;
+                    obj.collider = SDL_FRect{.x = 5, .y = 14, .w = 23, .h = 10};
+                    obj.collideable = true;
+                    playSound(res.plant_rise);
+                }
+            }
+            else if (obj.data.bullet.timer.isTimeout())
+            {
+                obj.tex = res.potato_1;
+                obj.currentAnimation = res.ANIM_POTATO_GROW;
+            }
+            else
+            {
+                obj.data.bullet.timer.step(deltaTime);
+            }
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
     for (auto &layer : gs.layers)
     {
         for (GameObject &objB : layer)
         {
             checkCollision(state, gs, res, obj, objB, deltaTime);
+        }
+    }
+
+    for (auto &bullet : gs.bullets)
+    {
+        for (auto &b : bullet)
+        {
+            checkCollision(state, gs, res, obj, b, deltaTime);
         }
     }
 }
@@ -513,7 +597,7 @@ void handleKayInput(const State &state, GameState &gs, GameObject &obj, Resource
                 keyup = false;
                 if (obj.data.player.skills.skill_sprint.state == SkillState::IS_AVAILABLE)
                 {
-                    playSound(res.tracks[GROUP_INDEX_SPRING], -1); 
+                    playSound(res.groups[GROUP_INDEX_SPRING], -1); 
                 }
                 obj.data.player.skills.sprint();
             }
@@ -595,7 +679,19 @@ void generateFood(State &state, GameState &gs, Resources &res, float deltaTime)
     food.collider = {.x = 8, .y = 8.5, .w = 14, .h = 13.5};
     food.data.food.number = gs.food_count;
 
-    gs.layers[LAYER_IDX_FOOD].push_back(food);
+    bool findAlternative = false;
+    for (auto &f : gs.layers[LAYER_IDX_FOOD])
+    {
+        if (f.collideable == false)
+        {
+            findAlternative = true;
+            f = food;
+            f.data.food.number = food.data.food.number;
+            break;
+        }
+    }
+    if (!findAlternative)
+        gs.layers[LAYER_IDX_FOOD].push_back(food);
 }
 
 void writeDebugText(State &state, GameState &gs, float deltaTime)
@@ -627,7 +723,8 @@ void writeDebugText(State &state, GameState &gs, float deltaTime)
     {
         present_fps.step(deltaTime);
     }
-    debug_1 << "fps: " << static_cast<long long>(cur_fps <= 999 ? cur_fps : 999) << (cur_fps <= 999 ? "" : "+");
+    debug_1 << "fps: " << static_cast<long long>(cur_fps <= 999 ? cur_fps : 999) << (cur_fps <= 999 ? "" : "+") 
+    << std::setiosflags(std::ios::fixed) << std::setprecision(2) << ", time: " << static_cast<int>(playtime);
 
     std::stringstream debug_2;
     debug_2 << std::setiosflags(std::ios::fixed) << std::setprecision(2) << "x: " << gs.player().position.x << ", y: " << gs.player().position.y;
@@ -663,9 +760,9 @@ void playSound(MIX_Track *track)
 }
 
 // -1: play randomly 
-void playSound(std::vector<MIX_Track*> &group, int index)
+void playSound(std::vector<MIX_Track*> &groups, int index)
 {
-    if (index >= static_cast<int>(group.size()))
+    if (index >= static_cast<int>(groups.size()))
     {
         std::cerr << "playSound: wrong index";
         return;
@@ -673,9 +770,98 @@ void playSound(std::vector<MIX_Track*> &group, int index)
     else if (index < 0)
     {
         std::mt19937 generater(rd());
-        std::uniform_int_distribution<int> distribution(0, group.size() - 1);
+        std::uniform_int_distribution<int> distribution(0, groups.size() - 1);
         index = distribution(generater);
     }
 
-    playSound(group[index]);
+    playSound(groups[index]);
+}
+
+void generatePotatoMine(State &state, GameState &gs, Resources &res, float deltaTime)
+{
+    static Timer interval(10);
+
+    if (gs.potato_count >= 10)
+        return;
+
+    if (interval.isTimeout())
+    {
+        interval.reset();
+        gs.potato_count += 1;
+    }
+    else
+    {
+        interval.step(deltaTime);
+        return;
+    }
+
+    std::mt19937 generater(rd());
+    /*
+        x (443, 1732)
+        y (159, 988)
+    */
+    std::normal_distribution<float> distributionX(1088.0f, 600.0f);
+    std::normal_distribution<float> distributionY(576.5f, 600.0f);
+
+    float x = distributionX(generater);
+    float y = distributionY(generater);
+    bool inRange = false;
+    while (!inRange)
+    {
+        if (x <= 443 + 150 || x >= 1732 - 150)
+        {
+            x = distributionX(generater);
+            continue;
+        }
+        if (y <= 159 + 150 || y >= 988 - 150)
+        {
+            y = distributionY(generater);
+            continue;
+        }
+        inRange = true;
+    }
+
+    GameObject potato;
+    potato.setType(ObjectType::bullet);
+    potato.animation = res.potatoAnims;
+    potato.tex = res.potato_0;
+    potato.currentAnimation = -1;
+    potato.data.bullet.state = BulletState::idle;
+    potato.data.bullet.type = BulletType::potatoMine;
+    potato.data.bullet.timer.setLength(15);
+    potato.data.bullet.timer.setTimeout(false);
+    potato.position = glm::vec2(x, y);
+    potato.collideable = false;
+
+    bool findAlternative = false;
+    for (auto &p : gs.bullets[BULLET_IDX_POTATO])
+    {
+        if (p.data.bullet.state == BulletState::inactive)
+        {
+            findAlternative = true;
+            p = potato;
+            p.data.bullet.timer.reset();
+            p.data.bullet.timer.setLength(15);
+            p.data.bullet.timer.setTimeout(false);
+            break;
+        }
+    }
+    if (!findAlternative)
+    {
+        potato.data.bullet.number = gs.bullets[BULLET_IDX_POTATO].size();
+        gs.bullets[BULLET_IDX_POTATO].push_back(potato);
+    }
+
+    if (potato.position.x - gs.mapViewport.x > 0 && potato.position.x - gs.mapViewport.x < state.logW &&
+        potato.position.y - gs.mapViewport.y > 0 && potato.position.y - gs.mapViewport.y < state.logH)
+        playSound(res.planting_sound);
+    // std::clog << gs.bullets[BULLET_IDX_POTATO].size() << "\n";
+    // for (const auto &i : gs.bullets)
+    // {
+    //     for (const auto &j : i)
+    //     {
+    //         std::clog << "(" << j.data.bullet.state << "," << j.currentAnimation << ")" << ", ";
+    //     }
+    //     std::clog << "\n";
+    // }
 }

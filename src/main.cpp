@@ -11,6 +11,7 @@
 #include "gaobject.hpp"
 
 // int fps = 60;
+float playtime = 0;
 bool debug = false;
 bool collision_box = false;
 std::random_device rd;
@@ -53,6 +54,7 @@ int main(int argc, char **argv)
         uint64_t nowTime = SDL_GetTicks();
         float deltaTime = (nowTime - prevTime) / 1000.0f;
         prevTime = nowTime;
+        playtime += deltaTime;
 
         SDL_Event event{0};
         while (SDL_PollEvent(&event))
@@ -86,13 +88,31 @@ int main(int argc, char **argv)
         SDL_RenderClear(state._renderer);
         drawBackground(state, gs, gs.player(), res.background);
         generateFood(state, gs, res, deltaTime);
+        generatePotatoMine(state, gs, res, deltaTime);
 
         for (auto &layer : gs.layers)
         {
             for (GameObject &obj : layer)
             {
                 update(state, gs, res, obj, deltaTime);
+                if (obj.currentAnimation != -1)
+                {
+                    obj.animation[obj.currentAnimation].step(deltaTime);
+                }
             }
+        }
+
+        for (auto &bullet : gs.bullets)
+        {
+            for (auto &b : bullet)
+            {
+                update(state, gs, res, b, deltaTime);
+                if (b.currentAnimation != -1)
+                {
+                    b.animation[b.currentAnimation].step(deltaTime);
+                }
+            }
+            
         }
 
         for (auto &layer : gs.layers)
@@ -101,6 +121,12 @@ int main(int argc, char **argv)
             {
                 drawObject(state, gs, obj, deltaTime);
             }
+        }
+
+        for (auto &bullet : gs.bullets)
+        {
+            for (auto &b : bullet)
+            drawObject(state, gs, b, deltaTime);
         }
 
         gs.mapViewport.x = (gs.player().position.x + 64 / 2) - gs.mapViewport.w / 2;
