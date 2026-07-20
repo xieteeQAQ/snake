@@ -140,19 +140,24 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
         {
             switch (objB.data.bullet.type)
             {
-                case BulletType::potatoMine:
+            case BulletType::potatoMine:
+            {
+                // only trigger explosion when mine is armed (idle)
+                if (objB.data.bullet.state == BulletState::idle)
                 {
                     objB.tex = res.potato_boom;
                     objB.collideable = false;
                     objB.data.bullet.timer.reset();
                     objB.data.bullet.timer.setLength(3); // the "boom" duration is 3s
                     objB.currentAnimation = -1;
+                    objB.data.bullet.state = BulletState::colliding;
                     gs.potato_count -= 1;
                     playSound(res.potato_boom_sound);
-                    break;
                 }
-                default:
-                    break;
+                break;
+            }
+            default:
+                break;
             }
         }
         default:
@@ -448,9 +453,13 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
                 {
                     obj.currentAnimation = res.ANIM_POTATO_IDLE;
                     obj.tex = res.potato_2;
-                    obj.collider = SDL_FRect{.x = 5, .y = 14, .w = 23, .h = 10};
+                    obj.collider = SDL_FRect{.x = 5, .y = 14, .w = 23, .h = 12};
                     obj.collideable = true;
-                    playSound(res.plant_rise);
+                    if (obj.position.x - gs.mapViewport.x > 0 && obj.position.x - gs.mapViewport.x < state.logW &&
+                        obj.position.y - gs.mapViewport.y > 0 && obj.position.y - gs.mapViewport.y < state.logH)
+                    {
+                        playSound(res.plant_rise, 0.5);
+                    }
                 }
             }
             else if (obj.data.bullet.timer.isTimeout())
@@ -597,7 +606,7 @@ void handleKayInput(const State &state, GameState &gs, GameObject &obj, Resource
                 keyup = false;
                 if (obj.data.player.skills.skill_sprint.state == SkillState::IS_AVAILABLE)
                 {
-                    playSound(res.groups[GROUP_INDEX_SPRING], -1); 
+                    playSound(res.groups[GROUP_INDEX_SPRING], -1);
                 }
                 obj.data.player.skills.sprint();
             }
@@ -658,8 +667,8 @@ void generateFood(State &state, GameState &gs, Resources &res, float deltaTime)
         x (443, 1732)
         y (159, 988)
     */
-    std::normal_distribution<float> distributionX(1088.0f, 400.0f);
-    std::normal_distribution<float> distributionY(576.5f, 400.0f);
+    std::normal_distribution<float> distributionX(1088.0f, 214.0f);
+    std::normal_distribution<float> distributionY(576.5f, 138.0f);
     ++gs.food_count;
 
     float x = 0, y = 0;
@@ -723,8 +732,8 @@ void writeDebugText(State &state, GameState &gs, float deltaTime)
     {
         present_fps.step(deltaTime);
     }
-    debug_1 << "fps: " << static_cast<long long>(cur_fps <= 999 ? cur_fps : 999) << (cur_fps <= 999 ? "" : "+") 
-    << std::setiosflags(std::ios::fixed) << std::setprecision(2) << ", time: " << static_cast<int>(playtime);
+    debug_1 << "fps: " << static_cast<long long>(cur_fps <= 999 ? cur_fps : 999) << (cur_fps <= 999 ? "" : "+")
+            << std::setiosflags(std::ios::fixed) << std::setprecision(2) << ", time: " << static_cast<int>(playtime);
 
     std::stringstream debug_2;
     debug_2 << std::setiosflags(std::ios::fixed) << std::setprecision(2) << "x: " << gs.player().position.x << ", y: " << gs.player().position.y;
@@ -743,15 +752,15 @@ void writeDebugText(State &state, GameState &gs, float deltaTime)
     SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
 }
 
-void playBGM(MIX_Track *track)
+void playBGM(MIX_Track *track, float volume)
 {
     SDL_PropertiesID props = SDL_CreateProperties();
     SDL_SetNumberProperty(props, MIX_PROP_PLAY_LOOPS_NUMBER, -1);
-    MIX_SetTrackGain(track, 0.3f); // 30% 音量
+    MIX_SetTrackGain(track, volume); // 30% 音量
     MIX_PlayTrack(track, props);
 }
 
-void playSound(MIX_Track *track)
+void playSound(MIX_Track *track, float volume)
 {
     SDL_PropertiesID props = SDL_CreateProperties();
     SDL_SetNumberProperty(props, MIX_PROP_PLAY_LOOPS_NUMBER, 0);
@@ -759,8 +768,8 @@ void playSound(MIX_Track *track)
     MIX_PlayTrack(track, props);
 }
 
-// -1: play randomly 
-void playSound(std::vector<MIX_Track*> &groups, int index)
+// -1: play randomly
+void playSound(std::vector<MIX_Track *> &groups, int index, float volume)
 {
     if (index >= static_cast<int>(groups.size()))
     {
@@ -800,8 +809,8 @@ void generatePotatoMine(State &state, GameState &gs, Resources &res, float delta
         x (443, 1732)
         y (159, 988)
     */
-    std::normal_distribution<float> distributionX(1088.0f, 600.0f);
-    std::normal_distribution<float> distributionY(576.5f, 600.0f);
+    std::normal_distribution<float> distributionX(1088.0f, 214.0f);
+    std::normal_distribution<float> distributionY(576.5f, 138.0f);
 
     float x = distributionX(generater);
     float y = distributionY(generater);
@@ -854,7 +863,9 @@ void generatePotatoMine(State &state, GameState &gs, Resources &res, float delta
 
     if (potato.position.x - gs.mapViewport.x > 0 && potato.position.x - gs.mapViewport.x < state.logW &&
         potato.position.y - gs.mapViewport.y > 0 && potato.position.y - gs.mapViewport.y < state.logH)
+    {
         playSound(res.planting_sound);
+    }
     // std::clog << gs.bullets[BULLET_IDX_POTATO].size() << "\n";
     // for (const auto &i : gs.bullets)
     // {

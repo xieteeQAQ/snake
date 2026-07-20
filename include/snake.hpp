@@ -195,7 +195,7 @@ void handleKayInput(const State &state, GameState &gs, GameObject &obj, Resource
 void drawBackground(State &state, GameState &gs, GameObject &obj, SDL_Texture *tex);
 void generateFood(State &state, GameState &gs, Resources &res, float deltaTime);
 void writeDebugText(State &state, GameState &gs, float deltaTime);
-void playBGM(MIX_Track *track);
-void playSound(MIX_Track *track);
-void playSound(std::vector<MIX_Track*> &group, int index);
+void playBGM(MIX_Track *track, float volume = 0.3f);
+void playSound(MIX_Track *track, float volume = 0.3f);
+void playSound(std::vector<MIX_Track*> &group, int index, float volume = 0.3f);
 void generatePotatoMine(State &state, GameState &gs, Resources &res, float deltaTime);
