@@ -113,7 +113,11 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
             gs.player().data.player.grow_counter.step(1);
             if (gs.player().data.player.grow_counter.isOver())
             {
+                int baseHealthAmount = 5;
+                int extraHealthAmount = 5;
                 gs.player().data.player.grow_counter.reset();
+                gs.player().data.player.increaseBaseHealth(baseHealthAmount);
+                gs.player().data.player.increaseExtraHealth(extraHealthAmount);
                 createBody(state, gs, res);
                 playSound(res.burp);
             }
@@ -152,6 +156,8 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
                     objB.currentAnimation = -1;
                     objB.data.bullet.state = BulletState::colliding;
                     gs.potato_count -= 1;
+
+                    objA.data.player.hurt(objB.data.bullet.attack, res);
                     playSound(res.potato_boom_sound);
                 }
                 break;
@@ -301,6 +307,16 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
                 obj.data.player.ruler.consumeOver();
                 obj.data.player.points.push_back(point);
             }
+        }
+
+        if (obj.data.player.currentHealth + obj.data.player.extraHealth > obj.data.player.baseHealth)
+        {
+
+            obj.data.player.totalHealth = obj.data.player.baseHealth + obj.data.player.extraHealth;
+        }
+        else
+        {
+            obj.data.player.totalHealth = obj.data.player.baseHealth;
         }
     }
 
@@ -572,6 +588,8 @@ void createMap(const State &state, GameState &gs, const Resources &res)
                 player.maxSpeedX = 125;
                 player.maxSpeedY = 125;
                 player.collider = {.x = 5, .y = 0, .w = 23, .h = 31};
+                player.data.player.currentHealth = player.data.player.totalHealth = player.data.player.baseHealth = 100;
+                player.data.player.extraHealth = 0;
                 gs.layers[LAYER_IDX_CHARACTERS].push_back(player);
                 gs.playerIndex = gs.layers[LAYER_IDX_CHARACTERS].size() - 1;
                 break;
@@ -609,6 +627,18 @@ void handleKayInput(const State &state, GameState &gs, GameObject &obj, Resource
                     playSound(res.groups[GROUP_INDEX_SPRING], -1);
                 }
                 obj.data.player.skills.sprint();
+            }
+            if (!keydown)
+                keyup = true;
+            break;
+        }
+        case SDL_SCANCODE_G:
+        {
+            static bool keyup = true;
+            if (keydown && keyup)
+            {
+                keyup = false;
+                gs.player().data.player.consumeBody(gs, res);
             }
             if (!keydown)
                 keyup = true;
@@ -744,10 +774,14 @@ void writeDebugText(State &state, GameState &gs, float deltaTime)
     std::stringstream debug_4;
     debug_4 << "bodys_amount: " << gs.layers[LAYER_IDX_BODY].size() << ", grow: " << gs.player().data.player.grow_counter.getNumber() << "/" << gs.player().data.player.grow_counter.getLength();
 
+    std::stringstream debug_5;
+    debug_5 << "baseHP: " << gs.player().data.player.baseHealth << ", curHP: " << gs.player().data.player.currentHealth << ", extraHP: " << gs.player().data.player.extraHealth;
+
     SDL_RenderDebugText(state._renderer, 7, 20, debug_1.str().c_str());
     SDL_RenderDebugText(state._renderer, 7, 40, debug_2.str().c_str());
     SDL_RenderDebugText(state._renderer, 7, 60, debug_3.str().c_str());
     SDL_RenderDebugText(state._renderer, 7, 80, debug_4.str().c_str());
+    SDL_RenderDebugText(state._renderer, 7, 100, debug_5.str().c_str());
 
     SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
 }
@@ -835,12 +869,13 @@ void generatePotatoMine(State &state, GameState &gs, Resources &res, float delta
     potato.animation = res.potatoAnims;
     potato.tex = res.potato_0;
     potato.currentAnimation = -1;
-    potato.data.bullet.state = BulletState::idle;
-    potato.data.bullet.type = BulletType::potatoMine;
-    potato.data.bullet.timer.setLength(15);
-    potato.data.bullet.timer.setTimeout(false);
     potato.position = glm::vec2(x, y);
     potato.collideable = false;
+    potato.data.bullet.state = BulletState::idle;
+    potato.data.bullet.type = BulletType::potatoMine;
+    potato.data.bullet.attack = 50;
+    potato.data.bullet.timer.setLength(15);
+    potato.data.bullet.timer.setTimeout(false);
 
     bool findAlternative = false;
     for (auto &p : gs.bullets[BULLET_IDX_POTATO])
@@ -852,6 +887,7 @@ void generatePotatoMine(State &state, GameState &gs, Resources &res, float delta
             p.data.bullet.timer.reset();
             p.data.bullet.timer.setLength(15);
             p.data.bullet.timer.setTimeout(false);
+            potato.data.bullet.attack = 10;
             break;
         }
     }
@@ -875,4 +911,53 @@ void generatePotatoMine(State &state, GameState &gs, Resources &res, float delta
     //     }
     //     std::clog << "\n";
     // }
+}
+
+void drawUI(State &state, GameState &gs)
+{
+    drawPlayerHealth(state, gs);
+}
+
+void drawPlayerHealth(State &state, GameState &gs)
+{
+    float baseLength = static_cast<float>(gs.player().data.player.baseHealth);
+    float extraLength = static_cast<float>(gs.player().data.player.extraHealth);
+    float currentLength = static_cast<float>(gs.player().data.player.currentHealth);
+    float totalLength = static_cast<float>(gs.player().data.player.totalHealth);
+    float height = 15.0f;
+    float center = static_cast<float>(state.logW) / 2.0f;
+
+    SDL_FRect baseRect = {
+        .x = center - totalLength / 2.0f,
+        .y = static_cast<float>(state.logH) - 30.0f,
+        .w = baseLength,
+        .h = height
+    };
+
+    SDL_SetRenderDrawColor(state._renderer, 178, 34, 34, 255);
+    SDL_RenderFillRect(state._renderer, &baseRect);
+
+    if (gs.player().data.player.currentHealth > 0)
+    {
+        SDL_FRect currentRect = {
+            .x = center - totalLength / 2.0f,
+            .y = static_cast<float>(state.logH) - 30.0f,
+            .w = currentLength,
+            .h = height
+        };
+        SDL_SetRenderDrawColor(state._renderer, 225, 225, 0, 255);
+        SDL_RenderFillRect(state._renderer, &currentRect);
+    }
+
+    if (gs.player().data.player.extraHealth > 0)
+    {
+        SDL_FRect extraRect = {
+            .x = (center - totalLength / 2.0f) + currentLength,
+            .y = static_cast<float>(state.logH) - 30.0f,
+            .w = extraLength,
+            .h = height
+        };
+        SDL_SetRenderDrawColor(state._renderer, 0, 225, 225, 255);
+        SDL_RenderFillRect(state._renderer, &extraRect);
+    }
 }

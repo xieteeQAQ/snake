@@ -8,6 +8,8 @@
 #include "Skills.hpp"
 #include "Timer.hpp"
 #include "Animation.hpp"
+struct Resources;
+struct GameState;
 
 enum PlayerState
 {
@@ -49,10 +51,24 @@ struct PlayerData
     Ruler ruler{32};
     std::deque<glm::vec2> points{};
     Counter grow_counter{3};
+    int totalHealth;
+    int baseHealth;
+    int extraHealth;
+    int currentHealth;
 
     PlayerData() : state(PlayerState::standby)
     {
     }
+
+    void hurt(int amount, Resources &res);
+
+    void treat(int amount, Resources &res);
+
+    void increaseExtraHealth(int amount);
+
+    void increaseBaseHealth(int amount);
+
+    void consumeBody(GameState &gs, Resources &res, int amount = 3);
 };
 
 struct LevelData
@@ -75,9 +91,10 @@ struct bulletData
     BulletType type;
     Timer timer;
     int number;
+    int attack;
 
-    bulletData() : state(BulletState::moving), type(BulletType::none) ,timer(0), number(0) {};
-    bulletData(float length) : state(BulletState::moving), type(BulletType::none),timer(length), number(0) {};
+    bulletData() : state(BulletState::moving), type(BulletType::none) ,timer(0), number(0), attack(0) {};
+    bulletData(float length) : state(BulletState::moving), type(BulletType::none),timer(length), number(0), attack(0) {};
 };
 
 

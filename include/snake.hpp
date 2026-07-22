@@ -25,6 +25,7 @@ extern float playtime;
 constexpr size_t GROUP_INDEX_BGM = 0;
 constexpr size_t GROUP_INDEX_SPRING = 1;
 constexpr size_t GROUP_INDEX_EAT = 2;
+constexpr size_t GROUP_INDEX_PLAYERHURT = 3;
 struct Resources
 {
     const size_t ANIM_POTATO_GROW = 0;
@@ -37,7 +38,7 @@ struct Resources
     std::vector<std::vector<MIX_Track*>> groups;
     std::vector<MIX_Track*> tracks;
     MIX_Track *Graze_The_Roof, *spring_1, *spring_2, *eat_1, *eat_2, *eat_3, *burp, *potato_boom_sound, *planting_sound,
-    *plant_rise;
+    *plant_rise, *lost, *ah1, *ah2, *ah3, *wo, *heal_sound;
 
     SDL_Texture *loadTex(SDL_Renderer *renderer, const std::string &filename)
     {
@@ -76,6 +77,7 @@ struct Resources
         std::vector<MIX_Track*> bgm_group;
         std::vector<MIX_Track*> spring_group;
         std::vector<MIX_Track*> eat_group;
+        std::vector<MIX_Track*> playerHurt_group;
         Graze_The_Roof = loadAudio(mixer, bgm_group, "music/Graze_The_Roof.mp3");
         spring_1 = loadAudio(mixer, spring_group, "music/otto_spring_1.wav");
         spring_2 = loadAudio(mixer, spring_group, "music/otto_spring_2.wav");
@@ -86,10 +88,17 @@ struct Resources
         potato_boom_sound = loadAudio(mixer, tracks, "music/potato_boom.mp3");
         planting_sound = loadAudio(mixer, tracks, "music/planting_sound.mp3");
         plant_rise = loadAudio(mixer, tracks, "music/plant_rise.mp3");
+        lost = loadAudio(mixer, tracks, "music/lost.mp3");
+        ah1 = loadAudio(mixer, playerHurt_group, "music/otto_hurt/ah1.wav");
+        ah2 = loadAudio(mixer, playerHurt_group, "music/otto_hurt/ah2.wav");
+        ah3 = loadAudio(mixer, playerHurt_group, "music/otto_hurt/ah3.wav");
+        wo = loadAudio(mixer, playerHurt_group, "music/otto_hurt/wo.wav");
+        heal_sound = loadAudio(mixer, tracks, "music/undertale_heal_sound.mp3");
 
         groups.push_back(bgm_group);
         groups.push_back(spring_group);
         groups.push_back(eat_group);
+        groups.push_back(playerHurt_group);
     }
 
     void unload()
@@ -199,3 +208,5 @@ void playBGM(MIX_Track *track, float volume = 0.3f);
 void playSound(MIX_Track *track, float volume = 0.3f);
 void playSound(std::vector<MIX_Track*> &group, int index, float volume = 0.3f);
 void generatePotatoMine(State &state, GameState &gs, Resources &res, float deltaTime);
+void drawUI(State &state, GameState &gs);
+void drawPlayerHealth(State &state, GameState &gs);

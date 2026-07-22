@@ -55,65 +55,93 @@ int main(int argc, char **argv)
         float deltaTime = (nowTime - prevTime) / 1000.0f;
         prevTime = nowTime;
         playtime += deltaTime;
-
+        
         SDL_Event event{0};
-        while (SDL_PollEvent(&event))
+        if (gs.player().data.player.currentHealth != 0)
         {
-            switch (event.type)
+            while (SDL_PollEvent(&event))
             {
-            case SDL_EVENT_QUIT:
-            {
-                running = false;
-                break;
+                switch (event.type)
+                {
+                case SDL_EVENT_QUIT:
+                {
+                    running = false;
+                    break;
+                }
+                case SDL_EVENT_WINDOW_RESIZED:
+                {
+                    state.width = event.window.data1;
+                    state.height = event.window.data2;
+                    break;
+                }
+                case SDL_EVENT_KEY_DOWN:
+                {
+                    handleKayInput(state, gs, gs.player(), res, deltaTime, event.key.scancode, true);
+                    break;
+                }
+                case SDL_EVENT_KEY_UP:
+                {
+                    handleKayInput(state, gs, gs.player(), res, deltaTime, event.key.scancode, false);
+                    break;
+                }
+                }
             }
-            case SDL_EVENT_WINDOW_RESIZED:
+
+            generateFood(state, gs, res, deltaTime);
+            generatePotatoMine(state, gs, res, deltaTime);
+            
+            for (auto &layer : gs.layers)
             {
-                state.width = event.window.data1;
-                state.height = event.window.data2;
-                break;
+                for (GameObject &obj : layer)
+                {
+                    update(state, gs, res, obj, deltaTime);
+                    if (obj.currentAnimation != -1)
+                    {
+                        obj.animation[obj.currentAnimation].step(deltaTime);
+                    }
+                }
             }
-            case SDL_EVENT_KEY_DOWN:
+            for (auto &bullet : gs.bullets)
             {
-                handleKayInput(state, gs, gs.player(), res, deltaTime, event.key.scancode, true);
-                break;
+                for (auto &b : bullet)
+                {
+                    update(state, gs, res, b, deltaTime);
+                    if (b.currentAnimation != -1)
+                    {
+                        b.animation[b.currentAnimation].step(deltaTime);
+                    }
+                }
+                
             }
-            case SDL_EVENT_KEY_UP:
+
+            if (gs.player().data.player.currentHealth == 0)
             {
-                handleKayInput(state, gs, gs.player(), res, deltaTime, event.key.scancode, false);
-                break;
+                playSound(res.lost);
             }
+        }
+        else
+        {
+            while (SDL_PollEvent(&event))
+            {
+                switch (event.type)
+                {
+                    case SDL_EVENT_QUIT:
+                    {
+                        running = false;
+                        break;
+                    }
+                    case SDL_EVENT_WINDOW_RESIZED:
+                    {
+                        state.width = event.window.data1;
+                        state.height = event.window.data2;
+                        break;
+                    }
+                }
             }
         }
         SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
         SDL_RenderClear(state._renderer);
         drawBackground(state, gs, gs.player(), res.background);
-        generateFood(state, gs, res, deltaTime);
-        generatePotatoMine(state, gs, res, deltaTime);
-
-        for (auto &layer : gs.layers)
-        {
-            for (GameObject &obj : layer)
-            {
-                update(state, gs, res, obj, deltaTime);
-                if (obj.currentAnimation != -1)
-                {
-                    obj.animation[obj.currentAnimation].step(deltaTime);
-                }
-            }
-        }
-
-        for (auto &bullet : gs.bullets)
-        {
-            for (auto &b : bullet)
-            {
-                update(state, gs, res, b, deltaTime);
-                if (b.currentAnimation != -1)
-                {
-                    b.animation[b.currentAnimation].step(deltaTime);
-                }
-            }
-            
-        }
 
         for (auto &layer : gs.layers)
         {
@@ -131,12 +159,11 @@ int main(int argc, char **argv)
 
         gs.mapViewport.x = (gs.player().position.x + 64 / 2) - gs.mapViewport.w / 2;
         gs.mapViewport.y = (gs.player().position.y + 64 / 2) - gs.mapViewport.h / 2;
-
         if (debug)
         {
             writeDebugText(state, gs, deltaTime);
         }
-
+        drawUI(state, gs);
         SDL_RenderPresent(state._renderer);
         // Uint32 delay = (1 / static_cast<float>(fps)) * 1000.0f;
         // SDL_Delay(delay);

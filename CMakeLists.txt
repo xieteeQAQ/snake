@@ -5,7 +5,8 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(main src/main.cpp src/State.cpp src/Food.cpp src/Skills.cpp
-    src/snake.cpp)
+    src/snake.cpp
+    src/gaobject.cpp)
 
 find_package(SDL3 REQUIRED)
 find_package(SDL3_image REQUIRED)
