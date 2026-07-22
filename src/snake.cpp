@@ -924,12 +924,16 @@ void drawPlayerHealth(State &state, GameState &gs)
     float extraLength = static_cast<float>(gs.player().data.player.extraHealth);
     float currentLength = static_cast<float>(gs.player().data.player.currentHealth);
     float totalLength = static_cast<float>(gs.player().data.player.totalHealth);
-    float height = 15.0f;
-    float center = static_cast<float>(state.logW) / 2.0f;
+    // float center = static_cast<float>(state.logW) / 2.0f;
+    
+    const float baseX = 15.0f;
+    const float baseY = static_cast<float>(state.logH) - 30.0f;
+    const float height = 15.0f;
 
     SDL_FRect baseRect = {
-        .x = center - totalLength / 2.0f,
-        .y = static_cast<float>(state.logH) - 30.0f,
+        // .x = center - totalLength / 2.0f,
+        .x = baseX,
+        .y = baseY,
         .w = baseLength,
         .h = height
     };
@@ -940,8 +944,9 @@ void drawPlayerHealth(State &state, GameState &gs)
     if (gs.player().data.player.currentHealth > 0)
     {
         SDL_FRect currentRect = {
-            .x = center - totalLength / 2.0f,
-            .y = static_cast<float>(state.logH) - 30.0f,
+            // .x = center - totalLength / 2.0f,
+            .x = baseX,
+            .y = baseY,
             .w = currentLength,
             .h = height
         };
@@ -952,8 +957,9 @@ void drawPlayerHealth(State &state, GameState &gs)
     if (gs.player().data.player.extraHealth > 0)
     {
         SDL_FRect extraRect = {
-            .x = (center - totalLength / 2.0f) + currentLength,
-            .y = static_cast<float>(state.logH) - 30.0f,
+            // .x = (center - totalLength / 2.0f) + currentLength,
+            .x = baseX + currentLength,
+            .y = baseY,
             .w = extraLength,
             .h = height
         };
