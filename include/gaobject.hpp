@@ -29,7 +29,7 @@ enum BulletState
 
 enum BulletType
 {
-    potatoMine, none
+    potatoMine, Frying, none
 };
 
 struct BodyData

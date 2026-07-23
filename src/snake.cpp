@@ -162,7 +162,7 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
                     objB.tex = res.potato_boom;
                     objB.collideable = false;
                     objB.data.bullet.timer.reset();
-                    objB.data.bullet.timer.setLength(3); // the "boom" duration is 3s
+                    objB.data.bullet.timer.setLength(3); // the "boom"s duration is 3s
                     objB.currentAnimation = -1;
                     objB.data.bullet.state = BulletState::colliding;
                     gs.potato_count -= 1;
@@ -171,6 +171,17 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
                     playSound(res.potato_boom_sound);
                 }
                 break;
+            }
+            case BulletType::Frying:
+            {
+                if (objB.data.bullet.state == BulletState::moving)
+                {
+                    objB.tex = nullptr;
+                    objB.collideable = false;
+                    objB.data.bullet.state = BulletState::inactive;
+
+                    objA.data.player.hurt(objB.data.bullet.attack, res);
+                }
             }
             default:
                 break;
@@ -243,282 +254,17 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
 {
     if (obj.type == ObjectType::player)
     {
-        float currentDirectionX = 0;
-        float currentDirectionY = 0;
-        if (state.keys[SDL_SCANCODE_W])
-            currentDirectionY -= 1;
-        if (state.keys[SDL_SCANCODE_S])
-            currentDirectionY += 1;
-        if (state.keys[SDL_SCANCODE_A])
-            currentDirectionX -= 1;
-        if (state.keys[SDL_SCANCODE_D])
-            currentDirectionX += 1;
-
-        obj.directionX = currentDirectionX ? currentDirectionX : obj.directionX;
-        obj.directionY = currentDirectionY ? currentDirectionY : obj.directionY;
-
-        switch (obj.data.player.state)
-        {
-        case PlayerState::standby:
-        {
-            if (currentDirectionX || currentDirectionY)
-            {
-                obj.data.player.state = PlayerState::running;
-            }
-            else
-            {
-                if (!currentDirectionX)
-                {
-                    const float factorX = obj.velocity.x > 0 ? -2.5f : 2.5f;
-                    float amountX = obj.acceleration.x * factorX * deltaTime;
-                    obj.velocity.x = std::fabsf(obj.velocity.x) < std::fabsf(amountX) ? 0 : obj.velocity.x + amountX;
-                }
-                if (!currentDirectionY)
-                {
-                    const float factorY = obj.velocity.y > 0 ? -2.5f : 2.5f;
-                    float amountY = obj.acceleration.y * factorY * deltaTime;
-                    obj.velocity.y = std::fabsf(obj.velocity.y) < std::fabsf(amountY) ? 0 : obj.velocity.y + amountY;
-                }
-            }
-            break;
-        }
-        case PlayerState::running:
-        {
-            if (currentDirectionX || currentDirectionY)
-            {
-                if (!currentDirectionX || (currentDirectionX > 0 && obj.velocity.x < 0) || (currentDirectionX < 0 && obj.velocity.x > 0))
-                {
-                    const float factorX = obj.velocity.x > 0 ? -1.5f : 1.5f;
-                    float amountX = obj.acceleration.x * factorX * deltaTime;
-                    obj.velocity.x = std::fabsf(obj.velocity.x) < std::fabsf(amountX) ? 0 : obj.velocity.x + amountX;
-                }
-                if (!currentDirectionY || (currentDirectionY > 0 && obj.velocity.y < 0) || (currentDirectionY < 0 && obj.velocity.y > 0))
-                {
-                    const float factorY = obj.velocity.y > 0 ? -1.5f : 1.5f;
-                    float amountY = obj.acceleration.y * factorY * deltaTime;
-                    obj.velocity.y = std::fabsf(obj.velocity.y) < std::fabsf(amountY) ? 0 : obj.velocity.y + amountY;
-                }
-            }
-            if (!currentDirectionX && !currentDirectionY)
-            {
-                obj.data.player.state = PlayerState::standby;
-            }
-        }
-        }
-
-        obj.data.player.skills.updateSkills(deltaTime);
-
-        obj.velocity.x += currentDirectionX * obj.acceleration.x * deltaTime;
-        obj.velocity.x = std::fabsf(obj.velocity.x) > obj.maxSpeedX ? currentDirectionX * obj.maxSpeedX : obj.velocity.x;
-
-        obj.velocity.y += currentDirectionY * obj.acceleration.y * deltaTime;
-        obj.velocity.y = std::fabsf(obj.velocity.y) > obj.maxSpeedY ? currentDirectionY * obj.maxSpeedY : obj.velocity.y;
-
-        obj.position += obj.velocity * deltaTime;
-
-        if (!gs.layers[LAYER_IDX_BODY].empty())
-        {
-            float dx = obj.velocity.x * deltaTime;
-            float dy = obj.velocity.y * deltaTime;
-            float deltaDistance = std::sqrt(dx * dx + dy * dy);
-            obj.data.player.ruler.step(deltaDistance);
-
-            while (obj.data.player.ruler.isOver())
-            {
-                glm::vec2 point = {obj.position.x, obj.position.y};
-                checkPointEdge(point);
-                obj.data.player.ruler.consumeOver();
-                obj.data.player.points.push_back(point);
-            }
-        }
-
-        if (obj.data.player.currentHealth + obj.data.player.extraHealth > obj.data.player.baseHealth)
-        {
-
-            obj.data.player.totalHealth = obj.data.player.baseHealth + obj.data.player.extraHealth;
-        }
-        else
-        {
-            obj.data.player.totalHealth = obj.data.player.baseHealth;
-        }
-
-        edgeDetection(state, gs, obj);
+        updatePlayer(state, gs, res, obj, deltaTime);
     }
 
     if (obj.type == ObjectType::body)
     {
-        if (gs.bodys_changed)
-            gs.bodysSort();
-        GameObject &pre = obj.data.body.number == 0 ? gs.player() : gs.body(obj.data.body.number - 1);
-
-        const float interval = 20;
-        float currentDirectionX = 0;
-        float currentDirectionY = 0;
-
-        float distanceX = pre.position.x - obj.position.x;
-        float distanceY = pre.position.y - obj.position.y;
-        float distance = std::sqrt(distanceX * distanceX + distanceY * distanceY);
-
-        float p_distanceX = distanceX;
-        float p_distanceY = distanceY;
-        float p_distance = distance;
-
-        if (pre.type == ObjectType::player)
-        {
-            auto &p = pre.data.player.points;
-            while (!p.empty())
-            {
-                p_distanceX = p[0].x - obj.position.x;
-                p_distanceY = p[0].y - obj.position.y;
-                p_distance = std::sqrt(p_distanceX * p_distanceX + p_distanceY * p_distanceY);
-                if (p_distance <= 5)
-                {
-                    p.pop_front();
-                    continue;
-                }
-                if (p.empty())
-                {
-                    p_distance = distance;
-                }
-                break;
-            }
-        }
-        else
-        {
-            auto &p = pre.data.body.points;
-            while (!p.empty())
-            {
-                p_distanceX = p[0].x - obj.position.x;
-                p_distanceY = p[0].y - obj.position.y;
-                p_distance = std::sqrt(p_distanceX * p_distanceX + p_distanceY * p_distanceY);
-                if (p_distance <= 5)
-                {
-                    p.pop_front();
-                    continue;
-                }
-                if (p.empty())
-                {
-                    p_distanceX = distanceX;
-                    p_distanceY = distanceY;
-                    p_distance = distance;
-                }
-                break;
-            }
-        }
-
-        if (p_distanceX > 0)
-            currentDirectionX += 1;
-        else if (p_distanceX < 0)
-            currentDirectionX -= 1;
-
-        if (p_distanceY > 0)
-            currentDirectionY += 1;
-        else if (p_distanceY < 0)
-            currentDirectionY -= 1;
-
-        obj.directionX = currentDirectionX ? currentDirectionX : obj.directionX;
-        obj.directionY = currentDirectionY ? currentDirectionY : obj.directionY;
-
-        if (currentDirectionX || currentDirectionY)
-        {
-            if (!currentDirectionX || (currentDirectionX > 0 && obj.velocity.x < 0) || (currentDirectionX < 0 && obj.velocity.x > 0))
-            {
-                obj.velocity.x = 0;
-            }
-            if (!currentDirectionY || (currentDirectionY > 0 && obj.velocity.y < 0) || (currentDirectionY < 0 && obj.velocity.y > 0))
-            {
-                obj.velocity.y = 0;
-            }
-        }
-
-        if (distance <= interval)
-        {
-            obj.velocity.x = 0;
-            obj.velocity.y = 0;
-        }
-        else
-        {
-            obj.velocity.x += currentDirectionX * obj.acceleration.x * deltaTime;
-            obj.velocity.x = std::fabsf(obj.velocity.x) > obj.maxSpeedX ? currentDirectionX * obj.maxSpeedX : obj.velocity.x;
-
-            obj.velocity.y += currentDirectionY * obj.acceleration.y * deltaTime;
-            obj.velocity.y = std::fabsf(obj.velocity.y) > obj.maxSpeedY ? currentDirectionY * obj.maxSpeedY : obj.velocity.y;
-        }
-
-        float dx = obj.velocity.x * deltaTime;
-        float dy = obj.velocity.y * deltaTime;
-        obj.position += obj.velocity * deltaTime;
-
-        if (obj.data.body.number != gs.lastBody().data.body.number)
-        {
-            float deltaDistance = std::sqrt(dx * dx + dy * dy);
-            obj.data.body.ruler.step(deltaDistance);
-
-            while (obj.data.body.ruler.isOver())
-            {
-                glm::vec2 point = {obj.position.x, obj.position.y};
-                checkPointEdge(point);
-                obj.data.body.ruler.consumeOver();
-                obj.data.body.points.push_back(point);
-            }
-        }
-
-        edgeDetection(state, gs, obj);
+        updateBody(state, gs, res, obj, deltaTime);
     }
 
     if (obj.type == ObjectType::bullet)
     {
-        switch (obj.data.bullet.type)
-        {
-        case BulletType::potatoMine:
-        {
-
-            if (obj.tex == res.potato_boom)
-            {
-                if (obj.data.bullet.timer.isTimeout())
-                {
-                    obj.tex = nullptr;
-                    obj.data.bullet.state = BulletState::inactive;
-                }
-                else
-                {
-                    obj.data.bullet.timer.step(deltaTime);
-                }
-                break;
-            }
-            else if (obj.currentAnimation == res.ANIM_POTATO_IDLE)
-            {
-                break;
-            }
-            else if (obj.currentAnimation == res.ANIM_POTATO_GROW)
-            {
-                if (obj.animation[obj.currentAnimation].isDone())
-                {
-                    obj.currentAnimation = res.ANIM_POTATO_IDLE;
-                    obj.tex = res.potato_2;
-                    obj.collider = SDL_FRect{.x = 5, .y = 14, .w = 23, .h = 12};
-                    obj.collideable = true;
-                    if (obj.position.x - gs.mapViewport.x > 0 && obj.position.x - gs.mapViewport.x < state.logW &&
-                        obj.position.y - gs.mapViewport.y > 0 && obj.position.y - gs.mapViewport.y < state.logH)
-                    {
-                        playSound(res.plant_rise, 0.5);
-                    }
-                }
-            }
-            else if (obj.data.bullet.timer.isTimeout())
-            {
-                obj.tex = res.potato_1;
-                obj.currentAnimation = res.ANIM_POTATO_GROW;
-            }
-            else
-            {
-                obj.data.bullet.timer.step(deltaTime);
-            }
-            break;
-        }
-        default:
-            break;
-        }
+       updateBullet(state, gs, res, obj, deltaTime);
     }
 
     for (auto &layer : gs.layers)
@@ -533,8 +279,310 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
     {
         for (auto &b : bullet)
         {
+            if (b.data.bullet.type == BulletType::Frying)
+            {
+                if (outOfRange(b))
+                {
+                    b.collideable = false;
+                    b.tex = nullptr;
+                    b.data.bullet.state = BulletState::inactive;
+                    continue;
+                }
+            }
             checkCollision(state, gs, res, obj, b, deltaTime);
         }
+    }
+
+    for (int i = BULLET_IDX_FRYING; i < gs.bullets.size(); ++i)
+    {
+        gs.bullets[i].erase(std::remove_if(gs.bullets[i].begin(), gs.bullets[i].end(), [](GameObject &b){
+            return b.data.bullet.state == BulletState::inactive;
+        }), gs.bullets[i].end());
+    }
+}
+
+void updatePlayer(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime)
+{
+    float currentDirectionX = 0;
+    float currentDirectionY = 0;
+    if (state.keys[SDL_SCANCODE_W])
+        currentDirectionY -= 1;
+    if (state.keys[SDL_SCANCODE_S])
+        currentDirectionY += 1;
+    if (state.keys[SDL_SCANCODE_A])
+        currentDirectionX -= 1;
+    if (state.keys[SDL_SCANCODE_D])
+        currentDirectionX += 1;
+
+    obj.directionX = currentDirectionX ? currentDirectionX : obj.directionX;
+    obj.directionY = currentDirectionY ? currentDirectionY : obj.directionY;
+
+    switch (obj.data.player.state)
+    {
+    case PlayerState::standby:
+    {
+        if (currentDirectionX || currentDirectionY)
+        {
+            obj.data.player.state = PlayerState::running;
+        }
+        else
+        {
+            if (!currentDirectionX)
+            {
+                const float factorX = obj.velocity.x > 0 ? -2.5f : 2.5f;
+                float amountX = obj.acceleration.x * factorX * deltaTime;
+                obj.velocity.x = std::fabsf(obj.velocity.x) < std::fabsf(amountX) ? 0 : obj.velocity.x + amountX;
+            }
+            if (!currentDirectionY)
+            {
+                const float factorY = obj.velocity.y > 0 ? -2.5f : 2.5f;
+                float amountY = obj.acceleration.y * factorY * deltaTime;
+                obj.velocity.y = std::fabsf(obj.velocity.y) < std::fabsf(amountY) ? 0 : obj.velocity.y + amountY;
+            }
+        }
+        break;
+    }
+    case PlayerState::running:
+    {
+        if (currentDirectionX || currentDirectionY)
+        {
+            if (!currentDirectionX || (currentDirectionX > 0 && obj.velocity.x < 0) || (currentDirectionX < 0 && obj.velocity.x > 0))
+            {
+                const float factorX = obj.velocity.x > 0 ? -1.5f : 1.5f;
+                float amountX = obj.acceleration.x * factorX * deltaTime;
+                obj.velocity.x = std::fabsf(obj.velocity.x) < std::fabsf(amountX) ? 0 : obj.velocity.x + amountX;
+            }
+            if (!currentDirectionY || (currentDirectionY > 0 && obj.velocity.y < 0) || (currentDirectionY < 0 && obj.velocity.y > 0))
+            {
+                const float factorY = obj.velocity.y > 0 ? -1.5f : 1.5f;
+                float amountY = obj.acceleration.y * factorY * deltaTime;
+                obj.velocity.y = std::fabsf(obj.velocity.y) < std::fabsf(amountY) ? 0 : obj.velocity.y + amountY;
+            }
+        }
+        if (!currentDirectionX && !currentDirectionY)
+        {
+            obj.data.player.state = PlayerState::standby;
+        }
+    }
+    }
+
+    obj.data.player.skills.updateSkills(deltaTime);
+
+    obj.velocity.x += currentDirectionX * obj.acceleration.x * deltaTime;
+    obj.velocity.x = std::fabsf(obj.velocity.x) > obj.maxSpeedX ? currentDirectionX * obj.maxSpeedX : obj.velocity.x;
+
+    obj.velocity.y += currentDirectionY * obj.acceleration.y * deltaTime;
+    obj.velocity.y = std::fabsf(obj.velocity.y) > obj.maxSpeedY ? currentDirectionY * obj.maxSpeedY : obj.velocity.y;
+
+    obj.position += obj.velocity * deltaTime;
+
+    if (!gs.layers[LAYER_IDX_BODY].empty())
+    {
+        float dx = obj.velocity.x * deltaTime;
+        float dy = obj.velocity.y * deltaTime;
+        float deltaDistance = std::sqrt(dx * dx + dy * dy);
+        obj.data.player.ruler.step(deltaDistance);
+
+        while (obj.data.player.ruler.isOver())
+        {
+            glm::vec2 point = {obj.position.x, obj.position.y};
+            checkPointEdge(point);
+            obj.data.player.ruler.consumeOver();
+            obj.data.player.points.push_back(point);
+        }
+    }
+
+    if (obj.data.player.currentHealth + obj.data.player.extraHealth > obj.data.player.baseHealth)
+    {
+
+        obj.data.player.totalHealth = obj.data.player.baseHealth + obj.data.player.extraHealth;
+    }
+    else
+    {
+        obj.data.player.totalHealth = obj.data.player.baseHealth;
+    }
+
+    edgeDetection(state, gs, obj);
+}
+
+void updateBody(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime)
+{
+    if (gs.bodys_changed)
+        gs.bodysSort();
+    GameObject &pre = obj.data.body.number == 0 ? gs.player() : gs.body(obj.data.body.number - 1);
+
+    const float interval = 20;
+    float currentDirectionX = 0;
+    float currentDirectionY = 0;
+
+    float distanceX = pre.position.x - obj.position.x;
+    float distanceY = pre.position.y - obj.position.y;
+    float distance = std::sqrt(distanceX * distanceX + distanceY * distanceY);
+
+    float p_distanceX = distanceX;
+    float p_distanceY = distanceY;
+    float p_distance = distance;
+
+    if (pre.type == ObjectType::player)
+    {
+        auto &p = pre.data.player.points;
+        while (!p.empty())
+        {
+            p_distanceX = p[0].x - obj.position.x;
+            p_distanceY = p[0].y - obj.position.y;
+            p_distance = std::sqrt(p_distanceX * p_distanceX + p_distanceY * p_distanceY);
+            if (p_distance <= 5)
+            {
+                p.pop_front();
+                continue;
+            }
+            if (p.empty())
+            {
+                p_distance = distance;
+            }
+            break;
+        }
+    }
+    else
+    {
+        auto &p = pre.data.body.points;
+        while (!p.empty())
+        {
+            p_distanceX = p[0].x - obj.position.x;
+            p_distanceY = p[0].y - obj.position.y;
+            p_distance = std::sqrt(p_distanceX * p_distanceX + p_distanceY * p_distanceY);
+            if (p_distance <= 5)
+            {
+                p.pop_front();
+                continue;
+            }
+            if (p.empty())
+            {
+                p_distanceX = distanceX;
+                p_distanceY = distanceY;
+                p_distance = distance;
+            }
+            break;
+        }
+    }
+
+    if (p_distanceX > 0)
+        currentDirectionX += 1;
+    else if (p_distanceX < 0)
+        currentDirectionX -= 1;
+
+    if (p_distanceY > 0)
+        currentDirectionY += 1;
+    else if (p_distanceY < 0)
+        currentDirectionY -= 1;
+
+    obj.directionX = currentDirectionX ? currentDirectionX : obj.directionX;
+    obj.directionY = currentDirectionY ? currentDirectionY : obj.directionY;
+
+    if (currentDirectionX || currentDirectionY)
+    {
+        if (!currentDirectionX || (currentDirectionX > 0 && obj.velocity.x < 0) || (currentDirectionX < 0 && obj.velocity.x > 0))
+        {
+            obj.velocity.x = 0;
+        }
+        if (!currentDirectionY || (currentDirectionY > 0 && obj.velocity.y < 0) || (currentDirectionY < 0 && obj.velocity.y > 0))
+        {
+            obj.velocity.y = 0;
+        }
+    }
+
+    if (distance <= interval)
+    {
+        obj.velocity.x = 0;
+        obj.velocity.y = 0;
+    }
+    else
+    {
+        obj.velocity.x += currentDirectionX * obj.acceleration.x * deltaTime;
+        obj.velocity.x = std::fabsf(obj.velocity.x) > obj.maxSpeedX ? currentDirectionX * obj.maxSpeedX : obj.velocity.x;
+
+        obj.velocity.y += currentDirectionY * obj.acceleration.y * deltaTime;
+        obj.velocity.y = std::fabsf(obj.velocity.y) > obj.maxSpeedY ? currentDirectionY * obj.maxSpeedY : obj.velocity.y;
+    }
+
+    float dx = obj.velocity.x * deltaTime;
+    float dy = obj.velocity.y * deltaTime;
+    obj.position += obj.velocity * deltaTime;
+
+    if (obj.data.body.number != gs.lastBody().data.body.number)
+    {
+        float deltaDistance = std::sqrt(dx * dx + dy * dy);
+        obj.data.body.ruler.step(deltaDistance);
+
+        while (obj.data.body.ruler.isOver())
+        {
+            glm::vec2 point = {obj.position.x, obj.position.y};
+            checkPointEdge(point);
+            obj.data.body.ruler.consumeOver();
+            obj.data.body.points.push_back(point);
+        }
+    }
+
+    edgeDetection(state, gs, obj);
+}
+
+void updateBullet(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime)
+{
+     switch (obj.data.bullet.type)
+    {
+    case BulletType::potatoMine:
+    {
+
+        if (obj.tex == res.potato_boom)
+        {
+            if (obj.data.bullet.timer.isTimeout())
+            {
+                obj.tex = nullptr;
+                obj.data.bullet.state = BulletState::inactive;
+            }
+            else
+            {
+                obj.data.bullet.timer.step(deltaTime);
+            }
+            break;
+        }
+        else if (obj.currentAnimation == res.ANIM_POTATO_IDLE)
+        {
+            break;
+        }
+        else if (obj.currentAnimation == res.ANIM_POTATO_GROW)
+        {
+            if (obj.animation[obj.currentAnimation].isDone())
+            {
+                obj.currentAnimation = res.ANIM_POTATO_IDLE;
+                obj.tex = res.potato_2;
+                obj.collider = SDL_FRect{.x = 5, .y = 14, .w = 23, .h = 12};
+                obj.collideable = true;
+                if (obj.position.x - gs.mapViewport.x > 0 && obj.position.x - gs.mapViewport.x < state.logW &&
+                    obj.position.y - gs.mapViewport.y > 0 && obj.position.y - gs.mapViewport.y < state.logH)
+                {
+                    playSound(res.plant_rise, 0.5);
+                }
+            }
+        }
+        else if (obj.data.bullet.timer.isTimeout())
+        {
+            obj.tex = res.potato_1;
+            obj.currentAnimation = res.ANIM_POTATO_GROW;
+        }
+        else
+        {
+            obj.data.bullet.timer.step(deltaTime);
+        }
+        break;
+    }
+    case BulletType::Frying:
+    {
+        obj.position.x += std::sinf(obj.angle) * obj.velocity.x;
+        obj.position.y += std::cosf(obj.angle) * obj.velocity.y;
+    }
+    default:
+        break;
     }
 }
 
@@ -804,11 +852,15 @@ void writeDebugText(State &state, GameState &gs, float deltaTime)
     std::stringstream debug_5;
     debug_5 << "baseHP: " << gs.player().data.player.baseHealth << ", curHP: " << gs.player().data.player.currentHealth << ", extraHP: " << gs.player().data.player.extraHealth;
 
+    std::stringstream debug_6;
+    debug_6 << "bullet: " << gs.bullets[BULLET_IDX_FRYING].size();
+
     SDL_RenderDebugText(state._renderer, 7, 20, debug_1.str().c_str());
     SDL_RenderDebugText(state._renderer, 7, 40, debug_2.str().c_str());
     SDL_RenderDebugText(state._renderer, 7, 60, debug_3.str().c_str());
     SDL_RenderDebugText(state._renderer, 7, 80, debug_4.str().c_str());
     SDL_RenderDebugText(state._renderer, 7, 100, debug_5.str().c_str());
+    SDL_RenderDebugText(state._renderer, 7, 120, debug_6.str().c_str());
 
     SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
 }
@@ -1063,4 +1115,35 @@ void updateMapViewPort(State &state, GameState &gs, GameObject &obj, float delta
     {
         gs.mapViewport.y += (dy - std::copysign(thresholdY, dy)) * (40.0f / static_cast<float>(state.height));
     }
+}
+
+void createCircleBullet(GameState &gs, Resources &res, SDL_Texture *tex, glm::vec2 velocity, SDL_FRect collider, int attack, int amount)
+{
+    std::mt19937 generater(rd());
+    std::uniform_int_distribution<int> distX(LEFTEDGE, RIGHTEDGE);
+    std::uniform_int_distribution<int> distY(UPPEREDGE, LOWERLEFTEDGE);
+    float X = static_cast<float>(distX(generater));
+    float Y = static_cast<float>(distY(generater));
+    for (int i = 0; i < amount; ++i)
+    {
+        GameObject bullet;
+        bullet.setType(ObjectType::bullet);
+        bullet.tex = tex;
+        bullet.collider = collider;
+        bullet.position = glm::vec2(X, Y);
+        bullet.velocity = velocity;
+        bullet.currentAnimation = -1;
+        bullet.angle = 360.0f / static_cast<float>(i + 1);
+        bullet.data.bullet.attack = attack;
+        bullet.data.bullet.state = BulletState::moving;
+        bullet.data.bullet.type = BulletType::Frying;
+        gs.bullets[BULLET_IDX_FRYING].push_back(bullet);
+    }
+}
+
+bool outOfRange(GameObject &obj)
+{
+    bool OutOfRangeX = obj.position.x < LEFTEDGE || obj.position.x > RIGHTEDGE;
+    bool OutOfRangeY = obj.position.y < UPPEREDGE || obj.position.y > LOWERLEFTEDGE;
+    return OutOfRangeX || OutOfRangeY;
 }

@@ -10,7 +10,8 @@
 #include "snake.hpp"
 #include "gaobject.hpp"
 
-// int fps = 60;
+const int FPS = 60;
+const int frameDelay = 1000 / FPS;
 float playtime = 0;
 bool debug = false;
 bool collision_box = false;
@@ -44,6 +45,7 @@ int main(int argc, char **argv)
 
     State state;
     state.init();
+    SDL_SetRenderVSync(state._renderer,1);
 
     Resources res;
     res.load(state, mixer);
@@ -94,6 +96,16 @@ int main(int argc, char **argv)
 
             generateFood(state, gs, res, deltaTime);
             generatePotatoMine(state, gs, res, deltaTime);
+
+            static Timer circleBullet_timer(3);
+            circleBullet_timer.step(deltaTime);
+            if (circleBullet_timer.isTimeout())
+            {
+                glm::vec2 v = {5.0f, 5.0f};
+                SDL_FRect c = {.x = 13, .y = 10, .w = 6, .h = 12};
+                createCircleBullet(gs, res, res.bullet_particle, v, c, 10, 10);
+                circleBullet_timer.reset();
+            }
             
             for (auto &layer : gs.layers)
             {
@@ -148,18 +160,18 @@ int main(int argc, char **argv)
         SDL_RenderClear(state._renderer);
         drawBackground(state, gs, gs.player(), res.background);
 
+        for (auto &bullet : gs.bullets)
+        {
+            for (auto &b : bullet)
+            drawObject(state, gs, b, deltaTime);
+        }
+
         for (auto &layer : gs.layers)
         {
             for (GameObject &obj : layer)
             {
                 drawObject(state, gs, obj, deltaTime);
             }
-        }
-
-        for (auto &bullet : gs.bullets)
-        {
-            for (auto &b : bullet)
-            drawObject(state, gs, b, deltaTime);
         }
 
         updateMapViewPort(state, gs, gs.player(), deltaTime);
@@ -170,8 +182,10 @@ int main(int argc, char **argv)
         }
         drawUI(state, gs);
         SDL_RenderPresent(state._renderer);
-        // Uint32 delay = (1 / static_cast<float>(fps)) * 1000.0f;
-        // SDL_Delay(delay);
+        if(frameDelay > deltaTime)
+        {
+            SDL_Delay(frameDelay - deltaTime);
+        }
     }
 
     std::cout << "\nhello world!\n";

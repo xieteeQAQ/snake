@@ -39,7 +39,7 @@ struct Resources
     std::vector<Animation> potatoAnims;
 
     std::vector<SDL_Texture *> texs;
-    SDL_Texture *tex_standby, *food, *background, *QAQ, *body, *potato_0, *potato_1, *potato_2, *potato_boom;
+    SDL_Texture *tex_standby, *food, *background, *QAQ, *body, *potato_0, *potato_1, *potato_2, *potato_boom, *bullet_particle;
 
     std::vector<std::vector<MIX_Track*>> groups;
     std::vector<MIX_Track*> tracks;
@@ -79,6 +79,7 @@ struct Resources
         potato_1 = loadTex(state._renderer, "image/potato/potato_1.png");
         potato_2 = loadTex(state._renderer, "image/potato/potato_2.png");
         potato_boom = loadTex(state._renderer, "image/potato/potato_boom.png");
+        bullet_particle = loadTex(state._renderer, "image/bullet_particle.png");
         
         std::vector<MIX_Track*> bgm_group;
         std::vector<MIX_Track*> spring_group;
@@ -133,10 +134,11 @@ constexpr size_t LAYER_IDX_CHARACTERS = 2;
 constexpr size_t LAYER_IDX_FOOD = 3;
 
 constexpr size_t BULLET_IDX_POTATO = 0;
+constexpr size_t BULLET_IDX_FRYING = 1;
 struct GameState
 {
     std::array<std::vector<GameObject>, 4> layers;
-    std::array<std::vector<GameObject>, 1> bullets;
+    std::array<std::vector<GameObject>, 2> bullets;
     int playerIndex;
     int food_count;
     int potato_count;
@@ -204,6 +206,9 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
 void checkCollision(const State &state, GameState &gs, Resources &res,
                     GameObject &a, GameObject &b, float deltaTime);
 void update(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime);
+void updatePlayer(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime);
+void updateBody(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime);
+void updateBullet(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime);
 void createMap(const State &state, GameState &gs, const Resources &res);
 void handleKayInput(const State &state, GameState &gs, GameObject &obj, Resources &res, float deltatime,
                     SDL_Scancode key, bool keydown);
@@ -218,3 +223,5 @@ void drawUI(State &state, GameState &gs);
 void drawPlayerHealth(State &state, GameState &gs);
 void edgeDetection(const State &state, GameState &gs, GameObject &obj);
 void updateMapViewPort(State &state, GameState &gs, GameObject &obj, float deltatime);
+void createCircleBullet(GameState &gs, Resources &res, SDL_Texture *tex, glm::vec2 velocity, SDL_FRect collider, int attack, int amount);
+bool outOfRange(GameObject &obj);
