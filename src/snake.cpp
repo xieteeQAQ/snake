@@ -215,6 +215,19 @@ void checkCollision(const State &state, GameState &gs, Resources &res,
 {
     if (!a.collideable || !b.collideable)
         return;
+    if (a.type == b.type)
+        return;
+    if (!(a.type == player || b.type == player))
+    {
+        if ((a.type == level && b.type == food) || (a.type == food && b.type == level))
+            return;
+        if ((a.type == food && b.type == body) || (a.type == body && b.type == food))
+            return;
+        if ((a.type == bullet && b.type == level) || (a.type == level && b.type == bullet))
+            return;
+    }
+    else if (a.type == body || b.type == body)
+        return;
 
     SDL_FRect rectA{.x = a.position.x + a.collider.x, .y = a.position.y + a.collider.y, .w = a.collider.w, .h = a.collider.h};
     SDL_FRect rectB{.x = b.position.x + b.collider.x, .y = b.position.y + b.collider.y, .w = b.collider.w, .h = b.collider.h};
@@ -328,6 +341,8 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
         {
             obj.data.player.totalHealth = obj.data.player.baseHealth;
         }
+
+        edgeDetection(state, gs, obj);
     }
 
     if (obj.type == ObjectType::body)
@@ -923,10 +938,11 @@ void drawUI(State &state, GameState &gs)
 
 void drawPlayerHealth(State &state, GameState &gs)
 {
-    float baseLength = static_cast<float>(gs.player().data.player.baseHealth);
-    float extraLength = static_cast<float>(gs.player().data.player.extraHealth);
-    float currentLength = static_cast<float>(gs.player().data.player.currentHealth);
-    float totalLength = static_cast<float>(gs.player().data.player.totalHealth);
+    const auto &data = gs.player().data.player;
+    float baseLength = static_cast<float>(data.baseHealth);
+    float extraLength = data.extraHealth < data.baseHealth ? static_cast<float>(data.extraHealth) : static_cast<float>(data.baseHealth);
+    float currentLength = static_cast<float>(data.currentHealth);
+    float totalLength = static_cast<float>(data.totalHealth);
     
     const float baseX = 15.0f;
     const float baseY = static_cast<float>(state.logH) - 30.0f;
@@ -964,7 +980,7 @@ void drawPlayerHealth(State &state, GameState &gs)
             .h = height
         };
         SDL_SetRenderDrawBlendMode(state._renderer, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(state._renderer, 0, 225, 225, 200);
+        SDL_SetRenderDrawColor(state._renderer, 0, 225, 225, 210);
         SDL_RenderFillRect(state._renderer, &extraRect);
         SDL_SetRenderDrawBlendMode(state._renderer, SDL_BLENDMODE_NONE);
     }
@@ -998,6 +1014,10 @@ void edgeDetection(const State &state, GameState &gs, GameObject &obj)
     {
         switch (obj.type)
         {
+            case ObjectType::player:
+            {
+                checkPointEdge(obj.position);
+            }
             case ObjectType::body:
             {
             auto &bodys = gs.layers[LAYER_IDX_BODY];
