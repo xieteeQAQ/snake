@@ -30,6 +30,11 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if (!TTF_Init())
+    {
+        SDL_Log("TTF init failed: %s", SDL_GetError());
+    }   
+
     MIX_Mixer *mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
     if (!mixer)
     {
@@ -157,8 +162,8 @@ int main(int argc, char **argv)
             drawObject(state, gs, b, deltaTime);
         }
 
-        gs.mapViewport.x = (gs.player().position.x + 64 / 2) - gs.mapViewport.w / 2;
-        gs.mapViewport.y = (gs.player().position.y + 64 / 2) - gs.mapViewport.h / 2;
+        updateMapViewPort(state, gs, gs.player(), deltaTime);
+
         if (debug)
         {
             writeDebugText(state, gs, deltaTime);

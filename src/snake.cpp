@@ -6,14 +6,22 @@
 */
 void checkPointEdge(glm::vec2 &point)
 {
-    if (point.x <= 443 + 2)
-        point.x += 3;
-    else if (point.x >= 1732 - 2)
-        point.x -= 3;
-    if (point.y <= 159 + 2)
-        point.y += 3;
-    else if (point.y >= 988 - 2)
-        point.y -= 3;
+    if (point.x <= LEFTEDGE + 1)
+    {
+        point.x += LEFTEDGE + 1 - point.x;
+    }
+    else if (point.x >= RIGHTEDGE - 1)
+    {
+        point.x -=  point.x - (RIGHTEDGE - 1);
+    }
+    if (point.y <= UPPEREDGE + 1)
+    {
+        point.y += UPPEREDGE + 1 - point.y;
+    }
+    else if (point.y >= LOWERLEFTEDGE - 1)
+    {
+        point.y -= point.x - (LOWERLEFTEDGE - 1);
+    }
 }
 
 constexpr float TILE_SIZE = 32;
@@ -24,8 +32,10 @@ void drawObject(const State &state, GameState &gs, GameObject &obj, float deltaT
 
     const float spriteSize = 128;
     float srcX = obj.currentAnimation != -1 ? obj.animation[obj.currentAnimation].currentFrame() * spriteSize : 0.0f;
+    float screenX = obj.position.x - gs.mapViewport.x;
+    float screenY = obj.position.y - gs.mapViewport.y;
     SDL_FRect src{.x = srcX, .y = 0, .w = spriteSize, .h = spriteSize};
-    SDL_FRect dst{.x = obj.position.x - gs.mapViewport.x, .y = obj.position.y - gs.mapViewport.y, .w = TILE_SIZE, .h = TILE_SIZE};
+    SDL_FRect dst{.x = screenX, .y = screenY, .w = TILE_SIZE, .h = TILE_SIZE};
     SDL_FPoint cen{.x = TILE_SIZE / 2, .y = TILE_SIZE / 2};
 
     SDL_FlipMode flipMode;
@@ -63,7 +73,7 @@ void createBody(const State &state, GameState &gs, Resources &res)
         return;
     }
 
-    float distance = 1;
+    float distance = 24;
     float len = std::sqrtf(pre.velocity.x * pre.velocity.x + pre.velocity.y * pre.velocity.y);
     GameObject body;
     body.setType(ObjectType::body);
@@ -437,6 +447,8 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
                 obj.data.body.points.push_back(point);
             }
         }
+
+        edgeDetection(state, gs, obj);
     }
 
     if (obj.type == ObjectType::bullet)
@@ -902,15 +914,6 @@ void generatePotatoMine(State &state, GameState &gs, Resources &res, float delta
     {
         playSound(res.planting_sound);
     }
-    // std::clog << gs.bullets[BULLET_IDX_POTATO].size() << "\n";
-    // for (const auto &i : gs.bullets)
-    // {
-    //     for (const auto &j : i)
-    //     {
-    //         std::clog << "(" << j.data.bullet.state << "," << j.currentAnimation << ")" << ", ";
-    //     }
-    //     std::clog << "\n";
-    // }
 }
 
 void drawUI(State &state, GameState &gs)
@@ -924,14 +927,13 @@ void drawPlayerHealth(State &state, GameState &gs)
     float extraLength = static_cast<float>(gs.player().data.player.extraHealth);
     float currentLength = static_cast<float>(gs.player().data.player.currentHealth);
     float totalLength = static_cast<float>(gs.player().data.player.totalHealth);
-    // float center = static_cast<float>(state.logW) / 2.0f;
     
     const float baseX = 15.0f;
     const float baseY = static_cast<float>(state.logH) - 30.0f;
     const float height = 15.0f;
+    const float baseY_health_amount = 60.0f;
 
     SDL_FRect baseRect = {
-        // .x = center - totalLength / 2.0f,
         .x = baseX,
         .y = baseY,
         .w = baseLength,
@@ -944,7 +946,6 @@ void drawPlayerHealth(State &state, GameState &gs)
     if (gs.player().data.player.currentHealth > 0)
     {
         SDL_FRect currentRect = {
-            // .x = center - totalLength / 2.0f,
             .x = baseX,
             .y = baseY,
             .w = currentLength,
@@ -957,13 +958,89 @@ void drawPlayerHealth(State &state, GameState &gs)
     if (gs.player().data.player.extraHealth > 0)
     {
         SDL_FRect extraRect = {
-            // .x = (center - totalLength / 2.0f) + currentLength,
-            .x = baseX + currentLength,
+            .x = baseX,
             .y = baseY,
             .w = extraLength,
             .h = height
         };
-        SDL_SetRenderDrawColor(state._renderer, 0, 225, 225, 255);
+        SDL_SetRenderDrawBlendMode(state._renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(state._renderer, 0, 225, 225, 200);
         SDL_RenderFillRect(state._renderer, &extraRect);
+        SDL_SetRenderDrawBlendMode(state._renderer, SDL_BLENDMODE_NONE);
+    }
+
+    std::stringstream text;
+    text << "HP: " << gs.player().data.player.currentHealth;
+    if (gs.player().data.player.extraHealth > 0)
+    {
+      text << " + " << gs.player().data.player.extraHealth;
+    }
+    text << " / " << gs.player().data.player.baseHealth;
+    TTF_TextEngine *engine = TTF_CreateRendererTextEngine(state._renderer);
+    TTF_Font *font = TTF_OpenFont("./font/Impact.ttf", 16.0f);
+    if (!font)
+    {
+        SDL_Log("Font load failed: %s", SDL_GetError());
+    }
+    TTF_Text *health_amount = TTF_CreateText(engine, font, text.str().c_str(), 0);
+    TTF_DrawRendererText(health_amount, baseX, state.logH - baseY_health_amount);
+}
+
+void edgeDetection(const State &state, GameState &gs, GameObject &obj)
+{
+    /*
+        x (443, 1732)
+        y (159, 988)
+    */
+    bool OutOfRangeX = obj.position.x < LEFTEDGE || obj.position.x > RIGHTEDGE;
+    bool OutOfRangeY = obj.position.y < UPPEREDGE || obj.position.y > LOWERLEFTEDGE;
+    if (OutOfRangeX || OutOfRangeY)
+    {
+        switch (obj.type)
+        {
+            case ObjectType::body:
+            {
+            auto &bodys = gs.layers[LAYER_IDX_BODY];
+            for (int i = 0; i < bodys.size(); ++i)
+            {
+                if (bodys[i].data.body.number == obj.data.body.number)
+                {
+                    GameObject &pre = i == 0 ? gs.player() : bodys[i - 1];
+                    auto &points = i == 0 ? pre.data.player.points : pre.data.body.points;
+                    float distance = 24;
+                    float len = std::sqrtf(pre.velocity.x * pre.velocity.x + pre.velocity.y * pre.velocity.y);
+                    obj.position.x = len > 0 ? pre.position.x - (pre.velocity.x / len) * distance : pre.position.x - pre.directionX * distance;
+                    obj.position.y = len > 0 ? pre.position.y - (pre.velocity.y / len) * distance : pre.position.y - pre.directionY * distance;
+                    checkPointEdge(obj.position);
+                    points.clear();
+                }
+            }
+            break;
+            }
+        default:
+            break;
+        }
+    }
+}
+
+void updateMapViewPort(State &state, GameState &gs, GameObject &obj, float deltatime)
+{
+    const float thresholdX = gs.mapViewport.w * 0.05f;
+    const float thresholdY = gs.mapViewport.h * 0.05f;
+    float playerCenterX = gs.player().position.x + 32.0f;
+    float playerCenterY = gs.player().position.y + 32.0f;
+    float viewCenterX = gs.mapViewport.x + gs.mapViewport.w / 2.0f;
+    float viewCenterY = gs.mapViewport.y + gs.mapViewport.h / 2.0f;
+    float dx = playerCenterX - viewCenterX;
+    float dy = playerCenterY - viewCenterY;
+    if (std::fabsf(dx) > thresholdX)
+    {
+        // gs.mapViewport.x += dx - std::copysign(thresholdX, dx);
+        gs.mapViewport.x += (dx - std::copysign(thresholdX, dx)) * (40.0f / static_cast<float>(state.width));
+    }
+
+    if (std::fabsf(dy) > thresholdY)
+    {
+        gs.mapViewport.y += (dy - std::copysign(thresholdY, dy)) * (40.0f / static_cast<float>(state.height));
     }
 }

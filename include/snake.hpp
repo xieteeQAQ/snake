@@ -9,6 +9,7 @@
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_mixer/SDL_mixer.h>
+#include <SDL3_ttf/SDL_ttf.h>
 #include <random>
 #include <sstream>
 #include <iomanip>
@@ -21,6 +22,11 @@ extern bool debug;
 extern bool collision_box;
 extern std::random_device rd;
 extern float playtime;
+
+constexpr float LEFTEDGE = 443;
+constexpr float RIGHTEDGE = 1732;
+constexpr float UPPEREDGE = 159;
+constexpr float LOWERLEFTEDGE = 998;
 
 constexpr size_t GROUP_INDEX_BGM = 0;
 constexpr size_t GROUP_INDEX_SPRING = 1;
@@ -210,3 +216,5 @@ void playSound(std::vector<MIX_Track*> &group, int index, float volume = 0.3f);
 void generatePotatoMine(State &state, GameState &gs, Resources &res, float deltaTime);
 void drawUI(State &state, GameState &gs);
 void drawPlayerHealth(State &state, GameState &gs);
+void edgeDetection(const State &state, GameState &gs, GameObject &obj);
+void updateMapViewPort(State &state, GameState &gs, GameObject &obj, float deltatime);
