@@ -94,17 +94,44 @@ int main(int argc, char **argv)
                 }
             }
 
+            SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
+            SDL_RenderClear(state._renderer);
+            drawBackground(state, gs, gs.player(), res.background);
+
             generateFood(state, gs, res, deltaTime);
             generatePotatoMine(state, gs, res, deltaTime);
 
             static Timer circleBullet_timer(3);
+            static Timer warning_timer(1);
+            static float X = 0;
+            static float Y = 0;
             circleBullet_timer.step(deltaTime);
+            static bool position = false;
             if (circleBullet_timer.isTimeout())
             {
-                glm::vec2 v = {5.0f, 5.0f};
-                SDL_FRect c = {.x = 13, .y = 10, .w = 6, .h = 12};
-                createCircleBullet(gs, res, res.bullet_particle, v, c, 10, 10);
-                circleBullet_timer.reset();
+                if (!position)
+                {
+                    std::mt19937 generater(rd());
+                    std::uniform_int_distribution<int> distX(LEFTEDGE, RIGHTEDGE);
+                    std::uniform_int_distribution<int> distY(UPPEREDGE, LOWERLEFTEDGE);
+                    X = static_cast<float>(distX(generater));
+                    Y = static_cast<float>(distY(generater));
+                    position = true;
+                }
+                warning_timer.step(deltaTime);
+                if (warning_timer.isTimeout())
+                {
+                    glm::vec2 v = {5.0f, 5.0f};
+                    SDL_FRect c = {.x = 13, .y = 10, .w = 6, .h = 12};
+                    createCircleBullet(state, gs, res, res.bullet_particle, X, Y, v, c, 10, 10, deltaTime);
+                    warning_timer.reset();
+                    circleBullet_timer.reset();
+                    position = false;
+                }
+                else
+                {
+                    drawWarning(state, gs, res, glm::vec2{X, Y});
+                }
             }
             
             for (auto &layer : gs.layers)
@@ -156,9 +183,6 @@ int main(int argc, char **argv)
                 }
             }
         }
-        SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
-        SDL_RenderClear(state._renderer);
-        drawBackground(state, gs, gs.player(), res.background);
 
         for (auto &bullet : gs.bullets)
         {

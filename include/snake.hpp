@@ -39,7 +39,8 @@ struct Resources
     std::vector<Animation> potatoAnims;
 
     std::vector<SDL_Texture *> texs;
-    SDL_Texture *tex_standby, *food, *background, *QAQ, *body, *potato_0, *potato_1, *potato_2, *potato_boom, *bullet_particle;
+    SDL_Texture *tex_standby, *food, *background, *QAQ, *body, *potato_0, *potato_1, *potato_2, *potato_boom, *bullet_particle,
+    *warning;
 
     std::vector<std::vector<MIX_Track*>> groups;
     std::vector<MIX_Track*> tracks;
@@ -80,6 +81,7 @@ struct Resources
         potato_2 = loadTex(state._renderer, "image/potato/potato_2.png");
         potato_boom = loadTex(state._renderer, "image/potato/potato_boom.png");
         bullet_particle = loadTex(state._renderer, "image/bullet_particle.png");
+        warning = loadTex(state._renderer, "image/warning.png");
         
         std::vector<MIX_Track*> bgm_group;
         std::vector<MIX_Track*> spring_group;
@@ -223,5 +225,6 @@ void drawUI(State &state, GameState &gs);
 void drawPlayerHealth(State &state, GameState &gs);
 void edgeDetection(const State &state, GameState &gs, GameObject &obj);
 void updateMapViewPort(State &state, GameState &gs, GameObject &obj, float deltatime);
-void createCircleBullet(GameState &gs, Resources &res, SDL_Texture *tex, glm::vec2 velocity, SDL_FRect collider, int attack, int amount);
+void createCircleBullet(State &state, GameState &gs, Resources &res, SDL_Texture *tex, const float &x, const float &y, glm::vec2 velocity, SDL_FRect collider, int attack, int amount, float deltatime);
 bool outOfRange(GameObject &obj);
+void drawWarning(State &state, GameState &gs, Resources &res, glm::vec2 position);

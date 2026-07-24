@@ -754,7 +754,7 @@ void generateFood(State &state, GameState &gs, Resources &res, float deltaTime)
 {
     static Timer interval(1.5);
 
-    if (gs.layers[LAYER_IDX_FOOD].size() >= 50)
+    if (gs.food_count - gs.eat >= 50)
         return;
 
     if (interval.isTimeout())
@@ -1117,20 +1117,15 @@ void updateMapViewPort(State &state, GameState &gs, GameObject &obj, float delta
     }
 }
 
-void createCircleBullet(GameState &gs, Resources &res, SDL_Texture *tex, glm::vec2 velocity, SDL_FRect collider, int attack, int amount)
+void createCircleBullet(State &state, GameState &gs, Resources &res, SDL_Texture *tex, const float &x, const float &y, glm::vec2 velocity, SDL_FRect collider, int attack, int amount, float deltatime)
 {
-    std::mt19937 generater(rd());
-    std::uniform_int_distribution<int> distX(LEFTEDGE, RIGHTEDGE);
-    std::uniform_int_distribution<int> distY(UPPEREDGE, LOWERLEFTEDGE);
-    float X = static_cast<float>(distX(generater));
-    float Y = static_cast<float>(distY(generater));
     for (int i = 0; i < amount; ++i)
     {
         GameObject bullet;
         bullet.setType(ObjectType::bullet);
         bullet.tex = tex;
         bullet.collider = collider;
-        bullet.position = glm::vec2(X, Y);
+        bullet.position = glm::vec2(x, y);
         bullet.velocity = velocity;
         bullet.currentAnimation = -1;
         bullet.angle = 360.0f / static_cast<float>(i + 1);
@@ -1146,4 +1141,14 @@ bool outOfRange(GameObject &obj)
     bool OutOfRangeX = obj.position.x < LEFTEDGE || obj.position.x > RIGHTEDGE;
     bool OutOfRangeY = obj.position.y < UPPEREDGE || obj.position.y > LOWERLEFTEDGE;
     return OutOfRangeX || OutOfRangeY;
+}
+
+void drawWarning(State &state, GameState &gs, Resources &res, glm::vec2 position)
+{
+    float screenX = position.x - gs.mapViewport.x;
+    float screenY = position.y - gs.mapViewport.y;
+    SDL_FRect src = {.x = 0, .y = 0, .w = 128, .h = 128};
+    SDL_FRect dst = {.x = screenX, .y = screenY, .w = TILE_SIZE, .h = TILE_SIZE};
+    SDL_FPoint cen = {.x = TILE_SIZE / 2, .y = TILE_SIZE / 2};
+    SDL_RenderTextureRotated(state._renderer, res.warning, &src, &dst, 0, &cen, SDL_FLIP_NONE);
 }
