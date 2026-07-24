@@ -6,13 +6,13 @@
 #include <vector>
 #include <math.h>
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <random>
 #include <sstream>
 #include <iomanip>
+#include <algorithm>
 #include "gaobject.hpp"
 #include "Timer.hpp"
 #include "State.hpp"
@@ -47,9 +47,17 @@ struct Resources
     MIX_Track *Graze_The_Roof, *spring_1, *spring_2, *eat_1, *eat_2, *eat_3, *burp, *potato_boom_sound, *planting_sound,
     *plant_rise, *lost, *ah1, *ah2, *ah3, *wo, *heal_sound;
 
+    std::vector<TTF_Font*> fonts;
+    TTF_Font* hpFont;
+
+
     SDL_Texture *loadTex(SDL_Renderer *renderer, const std::string &filename)
     {
         SDL_Texture *tex = IMG_LoadTexture(renderer, filename.c_str());
+        if (!tex)
+        {
+            SDL_Log("IMG: %s", SDL_GetError());
+        }
         SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
         texs.push_back(tex);
         return tex;
@@ -58,6 +66,10 @@ struct Resources
     MIX_Track *loadAudio(MIX_Mixer *mixer, std::vector<MIX_Track*> &vec, const std::string &filename)
     {
         MIX_Audio *audio = MIX_LoadAudio(mixer, filename.c_str(), false);
+        if (!audio)
+        {
+            SDL_Log("MIX: %s", SDL_GetError());
+        }
         MIX_Track *track = MIX_CreateTrack(mixer);
         MIX_SetTrackAudio(track, audio);
         vec.push_back(track);
@@ -65,7 +77,18 @@ struct Resources
         return track;
     }
 
-    void load(State &state, MIX_Mixer *mixer)
+    TTF_Font *loadFont(const std::string &filename, float ptsize)
+    {
+        TTF_Font *font = TTF_OpenFont(filename.c_str(), ptsize);
+        if (!font)
+        {
+            SDL_Log("TTF: %s", SDL_GetError());
+        }
+        fonts.push_back(font);
+        return font;
+    }
+
+    void load(State &state)
     {
         potatoAnims.resize(2);
         potatoAnims[ANIM_POTATO_GROW] = Animation(16, 0.59);
@@ -73,7 +96,7 @@ struct Resources
 
         tex_standby = loadTex(state._renderer, "image/player_normal.png");
         food = loadTex(state._renderer, "image/otto.png");
-        background = loadTex(state._renderer, "image/Frontyard.webp");
+        background = loadTex(state._renderer, "image/Frontyard.png");
         QAQ = loadTex(state._renderer, "image/QAQ.png");
         body = loadTex(state._renderer, "image/body_chicken.png");
         potato_0 = loadTex(state._renderer, "image/potato/potato_0.png");
@@ -87,27 +110,29 @@ struct Resources
         std::vector<MIX_Track*> spring_group;
         std::vector<MIX_Track*> eat_group;
         std::vector<MIX_Track*> playerHurt_group;
-        Graze_The_Roof = loadAudio(mixer, bgm_group, "music/Graze_The_Roof.mp3");
-        spring_1 = loadAudio(mixer, spring_group, "music/otto_spring_1.wav");
-        spring_2 = loadAudio(mixer, spring_group, "music/otto_spring_2.wav");
-        eat_1 = loadAudio(mixer, eat_group, "music/Eat1.ogg");
-        eat_2 = loadAudio(mixer, eat_group, "music/Eat2.ogg");
-        eat_3 = loadAudio(mixer, eat_group, "music/Eat3.ogg");
-        burp = loadAudio(mixer, tracks, "music/Burp.ogg");
-        potato_boom_sound = loadAudio(mixer, tracks, "music/potato_boom.mp3");
-        planting_sound = loadAudio(mixer, tracks, "music/planting_sound.mp3");
-        plant_rise = loadAudio(mixer, tracks, "music/plant_rise.mp3");
-        lost = loadAudio(mixer, tracks, "music/lost.mp3");
-        ah1 = loadAudio(mixer, playerHurt_group, "music/otto_hurt/ah1.wav");
-        ah2 = loadAudio(mixer, playerHurt_group, "music/otto_hurt/ah2.wav");
-        ah3 = loadAudio(mixer, playerHurt_group, "music/otto_hurt/ah3.wav");
-        wo = loadAudio(mixer, playerHurt_group, "music/otto_hurt/wo.wav");
-        heal_sound = loadAudio(mixer, tracks, "music/undertale_heal_sound.mp3");
+        Graze_The_Roof = loadAudio(state._mixer, bgm_group, "music/Graze_The_Roof.mp3");
+        spring_1 = loadAudio(state._mixer, spring_group, "music/otto_spring_1.wav");
+        spring_2 = loadAudio(state._mixer, spring_group, "music/otto_spring_2.wav");
+        eat_1 = loadAudio(state._mixer, eat_group, "music/Eat1.ogg");
+        eat_2 = loadAudio(state._mixer, eat_group, "music/Eat2.ogg");
+        eat_3 = loadAudio(state._mixer, eat_group, "music/Eat3.ogg");
+        burp = loadAudio(state._mixer, tracks, "music/Burp.ogg");
+        potato_boom_sound = loadAudio(state._mixer, tracks, "music/potato_boom.mp3");
+        planting_sound = loadAudio(state._mixer, tracks, "music/planting_sound.mp3");
+        plant_rise = loadAudio(state._mixer, tracks, "music/plant_rise.mp3");
+        lost = loadAudio(state._mixer, tracks, "music/lost.mp3");
+        ah1 = loadAudio(state._mixer, playerHurt_group, "music/otto_hurt/ah1.wav");
+        ah2 = loadAudio(state._mixer, playerHurt_group, "music/otto_hurt/ah2.wav");
+        ah3 = loadAudio(state._mixer, playerHurt_group, "music/otto_hurt/ah3.wav");
+        wo = loadAudio(state._mixer, playerHurt_group, "music/otto_hurt/wo.wav");
+        heal_sound = loadAudio(state._mixer, tracks, "music/undertale_heal_sound.mp3");
 
         groups.push_back(bgm_group);
         groups.push_back(spring_group);
         groups.push_back(eat_group);
         groups.push_back(playerHurt_group);
+
+        hpFont = loadFont("./font/Impact.ttf", 16);
     }
 
     void unload()
@@ -126,6 +151,10 @@ struct Resources
         for (auto t : tracks)
         {
             MIX_DestroyTrack(t);
+        }
+        for (auto f : fonts)
+        {
+            TTF_CloseFont(f);
         }
     }
 };
@@ -221,8 +250,8 @@ void playBGM(MIX_Track *track, float volume = 0.3f);
 void playSound(MIX_Track *track, float volume = 0.3f);
 void playSound(std::vector<MIX_Track*> &group, int index, float volume = 0.3f);
 void generatePotatoMine(State &state, GameState &gs, Resources &res, float deltaTime);
-void drawUI(State &state, GameState &gs);
-void drawPlayerHealth(State &state, GameState &gs);
+void drawUI(State &state, GameState &gs, Resources &res);
+void drawPlayerHealth(State &state, GameState &gs, Resources &res);
 void edgeDetection(const State &state, GameState &gs, GameObject &obj);
 void updateMapViewPort(State &state, GameState &gs, GameObject &obj, float deltatime);
 void createCircleBullet(State &state, GameState &gs, Resources &res, SDL_Texture *tex, const float &x, const float &y, glm::vec2 velocity, SDL_FRect collider, int attack, int amount, float deltatime);

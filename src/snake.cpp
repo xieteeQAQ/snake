@@ -267,37 +267,30 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
        updateBullet(state, gs, res, obj, deltaTime);
     }
 
-    for (auto &layer : gs.layers)
+    for (int i = 0; i < gs.layers.size(); ++i)
     {
-        for (GameObject &objB : layer)
+        for (int j = 0; j < gs.layers[i].size(); ++j)
         {
-            checkCollision(state, gs, res, obj, objB, deltaTime);
+            checkCollision(state, gs, res, obj, gs.layers[i][j], deltaTime);
         }
     }
 
-    for (auto &bullet : gs.bullets)
+    for (int i = 0; i < gs.bullets.size(); ++i)
     {
-        for (auto &b : bullet)
+        for (int j = 0; j < gs.bullets[i].size(); ++j)
         {
-            if (b.data.bullet.type == BulletType::Frying)
+            if (gs.bullets[i][j].data.bullet.type == BulletType::Frying)
             {
-                if (outOfRange(b))
+                if (outOfRange(gs.bullets[i][j]))
                 {
-                    b.collideable = false;
-                    b.tex = nullptr;
-                    b.data.bullet.state = BulletState::inactive;
+                    gs.bullets[i][j].collideable = false;
+                    gs.bullets[i][j].tex = nullptr;
+                    gs.bullets[i][j].data.bullet.state = BulletState::inactive;
                     continue;
                 }
             }
-            checkCollision(state, gs, res, obj, b, deltaTime);
+            checkCollision(state, gs, res, obj, gs.bullets[i][j], deltaTime);
         }
-    }
-
-    for (int i = BULLET_IDX_FRYING; i < gs.bullets.size(); ++i)
-    {
-        gs.bullets[i].erase(std::remove_if(gs.bullets[i].begin(), gs.bullets[i].end(), [](GameObject &b){
-            return b.data.bullet.state == BulletState::inactive;
-        }), gs.bullets[i].end());
     }
 }
 
@@ -837,6 +830,17 @@ void writeDebugText(State &state, GameState &gs, float deltaTime)
     {
         present_fps.step(deltaTime);
     }
+
+    int objCount = 0;
+    for (int i = 0; i < gs.layers.size(); ++i)
+    {
+        objCount += gs.layers[i].size();
+    }
+    for (int i = 0; i < gs.bullets.size(); ++i)
+    {
+        objCount += gs.bullets[i].size();
+    }
+
     debug_1 << "fps: " << static_cast<long long>(cur_fps <= 999 ? cur_fps : 999) << (cur_fps <= 999 ? "" : "+")
             << std::setiosflags(std::ios::fixed) << std::setprecision(2) << ", time: " << static_cast<int>(playtime);
 
@@ -853,7 +857,7 @@ void writeDebugText(State &state, GameState &gs, float deltaTime)
     debug_5 << "baseHP: " << gs.player().data.player.baseHealth << ", curHP: " << gs.player().data.player.currentHealth << ", extraHP: " << gs.player().data.player.extraHealth;
 
     std::stringstream debug_6;
-    debug_6 << "bullet: " << gs.bullets[BULLET_IDX_FRYING].size();
+    debug_6 << "bullet: " << gs.bullets[BULLET_IDX_FRYING].size() << ", objCount: " << objCount;
 
     SDL_RenderDebugText(state._renderer, 7, 20, debug_1.str().c_str());
     SDL_RenderDebugText(state._renderer, 7, 40, debug_2.str().c_str());
@@ -983,18 +987,22 @@ void generatePotatoMine(State &state, GameState &gs, Resources &res, float delta
     }
 }
 
-void drawUI(State &state, GameState &gs)
+void drawUI(State &state, GameState &gs, Resources &res)
 {
-    drawPlayerHealth(state, gs);
+    drawPlayerHealth(state, gs, res);
 }
 
-void drawPlayerHealth(State &state, GameState &gs)
+void drawPlayerHealth(State &state, GameState &gs, Resources &res)
 {
     const auto &data = gs.player().data.player;
     float baseLength = static_cast<float>(data.baseHealth);
     float extraLength = data.extraHealth < data.baseHealth ? static_cast<float>(data.extraHealth) : static_cast<float>(data.baseHealth);
     float currentLength = static_cast<float>(data.currentHealth);
     float totalLength = static_cast<float>(data.totalHealth);
+
+    static int pre_baseHealth = data.baseHealth;
+    static int pre_extraHealth = data.extraHealth;
+    static int pre_currentHealth = data.currentHealth;
     
     const float baseX = 15.0f;
     const float baseY = static_cast<float>(state.logH) - 30.0f;
@@ -1044,14 +1052,10 @@ void drawPlayerHealth(State &state, GameState &gs)
       text << " + " << gs.player().data.player.extraHealth;
     }
     text << " / " << gs.player().data.player.baseHealth;
-    TTF_TextEngine *engine = TTF_CreateRendererTextEngine(state._renderer);
-    TTF_Font *font = TTF_OpenFont("./font/Impact.ttf", 16.0f);
-    if (!font)
-    {
-        SDL_Log("Font load failed: %s", SDL_GetError());
-    }
-    TTF_Text *health_amount = TTF_CreateText(engine, font, text.str().c_str(), 0);
+
+    TTF_Text *health_amount = TTF_CreateText(state._engine, res.hpFont, text.str().c_str(), 0);
     TTF_DrawRendererText(health_amount, baseX, state.logH - baseY_health_amount);
+    TTF_DestroyText(health_amount);
 }
 
 void edgeDetection(const State &state, GameState &gs, GameObject &obj)

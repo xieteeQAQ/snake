@@ -1,6 +1,5 @@
 #include <iostream>
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <thread>
@@ -21,13 +20,13 @@ int main(int argc, char **argv)
 {
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
-        std::cerr << "SDL: init failed\n";
+        SDL_Log("SDL init failed: %s", SDL_GetError());
         return 1;
     }
 
     if (!MIX_Init())
     {
-        std::cerr << "SDL_mixer: init failed\n";
+        SDL_Log("MIX init failed: %s", SDL_GetError());
         return 1;
     }
 
@@ -36,19 +35,12 @@ int main(int argc, char **argv)
         SDL_Log("TTF init failed: %s", SDL_GetError());
     }   
 
-    MIX_Mixer *mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
-    if (!mixer)
-    {
-        std::cerr << "SDL_mixer: create mixer failed\n";
-        return 1;
-    }
-
     State state;
     state.init();
     SDL_SetRenderVSync(state._renderer,1);
 
     Resources res;
-    res.load(state, mixer);
+    res.load(state);
 
     GameState gs(state);
     createMap(state, gs, res);
@@ -94,10 +86,6 @@ int main(int argc, char **argv)
                 }
             }
 
-            SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
-            SDL_RenderClear(state._renderer);
-            drawBackground(state, gs, gs.player(), res.background);
-
             generateFood(state, gs, res, deltaTime);
             generatePotatoMine(state, gs, res, deltaTime);
 
@@ -134,28 +122,33 @@ int main(int argc, char **argv)
                 }
             }
             
-            for (auto &layer : gs.layers)
+            for (int i = 0; i < gs.layers.size(); ++i)
             {
-                for (GameObject &obj : layer)
+                for (int j = 0; j < gs.layers[i].size(); ++j)
                 {
-                    update(state, gs, res, obj, deltaTime);
-                    if (obj.currentAnimation != -1)
+                    update(state, gs, res, gs.layers[i][j], deltaTime);
+                    if (gs.layers[i][j].currentAnimation != -1)
                     {
-                        obj.animation[obj.currentAnimation].step(deltaTime);
+                        gs.layers[i][j].animation[gs.layers[i][j].currentAnimation].step(deltaTime);
                     }
                 }
             }
-            for (auto &bullet : gs.bullets)
+            for (int i = 0; i < gs.bullets.size(); ++i)
             {
-                for (auto &b : bullet)
+                for (int j = 0; j < gs.bullets[i].size(); ++j)
                 {
-                    update(state, gs, res, b, deltaTime);
-                    if (b.currentAnimation != -1)
+                    update(state, gs, res, gs.bullets[i][j], deltaTime);
+                    if (gs.bullets[i][j].currentAnimation != -1)
                     {
-                        b.animation[b.currentAnimation].step(deltaTime);
+                        gs.bullets[i][j].animation[gs.bullets[i][j].currentAnimation].step(deltaTime);
                     }
                 }
-                
+                for (int i = BULLET_IDX_FRYING; i < gs.bullets.size(); ++i)
+                {
+                    gs.bullets[i].erase(std::remove_if(gs.bullets[i].begin(), gs.bullets[i].end(), [](GameObject &b){
+                        return b.data.bullet.state == BulletState::inactive;
+                    }), gs.bullets[i].end());
+                }
             }
 
             if (gs.player().data.player.currentHealth == 0)
@@ -183,6 +176,9 @@ int main(int argc, char **argv)
                 }
             }
         }
+        SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
+        SDL_RenderClear(state._renderer);
+        drawBackground(state, gs, gs.player(), res.background);
 
         for (auto &bullet : gs.bullets)
         {
@@ -204,7 +200,7 @@ int main(int argc, char **argv)
         {
             writeDebugText(state, gs, deltaTime);
         }
-        drawUI(state, gs);
+        drawUI(state, gs, res);
         SDL_RenderPresent(state._renderer);
         if(frameDelay > deltaTime)
         {
@@ -216,7 +212,8 @@ int main(int argc, char **argv)
 
     res.unload();
     state.~State();
-    MIX_DestroyMixer(mixer);
+    TTF_Quit();
+    MIX_Quit();
     SDL_Quit();
     return 0;
 }
