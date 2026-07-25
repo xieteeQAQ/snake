@@ -44,16 +44,15 @@ struct Resources
 
     std::vector<SDL_Texture *> texs;
     SDL_Texture *tex_standby, *food, *background, *QAQ, *body, *potato_0, *potato_1, *potato_2, *potato_boom, *stickyRice,
-    *warning;
+        *warning;
 
-    std::vector<std::vector<MIX_Track*>> groups;
-    std::vector<MIX_Track*> tracks;
+    std::vector<std::vector<MIX_Track *>> groups;
+    std::vector<MIX_Track *> tracks;
     MIX_Track *Graze_The_Roof, *spring_1, *spring_2, *eat_1, *eat_2, *eat_3, *burp, *potato_boom_sound, *planting_sound,
-    *plant_rise, *lost, *ah1, *ah2, *ah3, *wo, *heal_sound;
+        *plant_rise, *lost, *ah1, *ah2, *ah3, *wo, *heal_sound;
 
-    std::vector<TTF_Font*> fonts;
-    TTF_Font* hpFont;
-
+    std::vector<TTF_Font *> fonts;
+    TTF_Font *hpFont;
 
     SDL_Texture *loadTex(SDL_Renderer *renderer, const std::string &filename)
     {
@@ -67,7 +66,7 @@ struct Resources
         return tex;
     }
 
-    MIX_Track *loadAudio(MIX_Mixer *mixer, std::vector<MIX_Track*> &vec, const std::string &filename)
+    MIX_Track *loadAudio(MIX_Mixer *mixer, std::vector<MIX_Track *> &vec, const std::string &filename)
     {
         MIX_Audio *audio = MIX_LoadAudio(mixer, filename.c_str(), false);
         if (!audio)
@@ -109,11 +108,11 @@ struct Resources
         potato_boom = loadTex(state._renderer, "image/potato/potato_boom.png");
         stickyRice = loadTex(state._renderer, "image/stickyRice.png");
         warning = loadTex(state._renderer, "image/warning.png");
-        
-        std::vector<MIX_Track*> bgm_group;
-        std::vector<MIX_Track*> spring_group;
-        std::vector<MIX_Track*> eat_group;
-        std::vector<MIX_Track*> playerHurt_group;
+
+        std::vector<MIX_Track *> bgm_group;
+        std::vector<MIX_Track *> spring_group;
+        std::vector<MIX_Track *> eat_group;
+        std::vector<MIX_Track *> playerHurt_group;
         Graze_The_Roof = loadAudio(state._mixer, bgm_group, "music/Graze_The_Roof.mp3");
         spring_1 = loadAudio(state._mixer, spring_group, "music/otto_spring_1.wav");
         spring_2 = loadAudio(state._mixer, spring_group, "music/otto_spring_2.wav");
@@ -170,11 +169,14 @@ constexpr size_t LAYER_IDX_FOOD = 3;
 
 constexpr size_t BULLET_IDX_POTATO = 0;
 constexpr size_t BULLET_IDX_FRYING = 1;
+
+constexpr size_t TIMER_PLAYER_HURT_SOUNDEFFTECT = 0;
 struct GameState
 {
     std::array<std::vector<GameObject>, 4> layers;
     std::array<std::vector<GameObject>, 2> bullets;
     std::vector<BulletGenerater> bulletGeneraters;
+    std::vector<Timer> timers;
     int playerIndex;
     int food_count;
     int potato_count;
@@ -193,6 +195,8 @@ struct GameState
         eat = 0;
         n.type = ObjectType::nullobj;
         bodys_changed = false;
+
+        timers.push_back(Timer(0.5f));
     }
 
     GameObject &player()
@@ -233,31 +237,81 @@ struct GameState
     }
 };
 
+// check the point and correct it if it beyonds the map edge
 void checkPointEdge(glm::vec2 &point);
+
+// draw texture of the object, draw the debug information at same time
 void drawObject(const State &state, GameState &gs, GameObject &obj, float deltaTime);
+
+// create body when player meets growth requires
 void createBody(const State &state, GameState &gs, Resources &res);
+
+// if the object has a collision, give the corresponding response
 void collisionResponse(const State &state, GameState &gs, Resources &res,
                        const SDL_FRect &recA, const SDL_FRect &recB, const SDL_FRect &recC,
                        GameObject &objA, GameObject &objB, float deltaTime);
+
+// check the object collision and call the response function if it existed
 void checkCollision(const State &state, GameState &gs, Resources &res,
                     GameObject &a, GameObject &b, float deltaTime);
+
+// update the state of existed objects, check collisons amongs the objects, update the time of timers
 void update(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime);
+
+// update function for player objects
 void updatePlayer(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime);
+
+// update function for player's bodys objects
 void updateBody(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime);
+
+// update function for bullets objects
 void updateBullet(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime);
+
+// initialize the map and player
 void createMap(const State &state, GameState &gs, const Resources &res);
-void handleKayInput(const State &state, GameState &gs, GameObject &obj, Resources &res, float deltatime,
+
+// handle the key input
+void handleKeyInput(const State &state, GameState &gs, GameObject &obj, Resources &res, float deltatime,
                     SDL_Scancode key, bool keydown);
+
+// draw the map background
 void drawBackground(State &state, GameState &gs, GameObject &obj, SDL_Texture *tex);
+
+// generate food on the map
 void generateFood(State &state, GameState &gs, Resources &res, float deltaTime);
+
+// write debug infomation on the screen
 void writeDebugText(State &state, GameState &gs, float deltaTime);
+
+// play background music
 void playBGM(MIX_Track *track, float volume = 0.3f);
+
+// play sound effect
 void playSound(MIX_Track *track, float volume = 0.3f);
-void playSound(std::vector<MIX_Track*> &group, int index, float volume = 0.3f);
+
+// play sound effect in the resourses group(vector), if the index is -1, play randomly
+void playSound(std::vector<MIX_Track *> &group, int index, float volume = 0.3f);
+
+// generate potato mine on the map
 void generatePotatoMine(State &state, GameState &gs, Resources &res, float deltaTime);
+
+// draw game UI
 void drawUI(State &state, GameState &gs, Resources &res);
+
+// draw player's health informaion
 void drawPlayerHealth(State &state, GameState &gs, Resources &res);
+
+// detect the object's position, and correct it if if beyonds the map edge
 void edgeDetection(const State &state, GameState &gs, GameObject &obj);
+
+// update the map viewport
 void updateMapViewPort(State &state, GameState &gs, GameObject &obj, float deltatime);
+
+// return true if the object beyonds the map edge
 bool outOfRange(GameObject &obj);
+
+// draw bullets warning
 void drawWarning(const State &state, GameState &gs, Resources &res, glm::vec2 position);
+
+// delect the body objects whose state is "dead"
+void delectDeadBody(GameState &gs);

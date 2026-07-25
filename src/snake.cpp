@@ -17,7 +17,7 @@ void checkPointEdge(glm::vec2 &point)
     }
     else if (point.x >= RIGHTEDGE - 1)
     {
-        point.x -=  point.x - (RIGHTEDGE - 1);
+        point.x -= point.x - (RIGHTEDGE - 1);
     }
     if (point.y <= UPPEREDGE + 1)
     {
@@ -91,6 +91,9 @@ void createBody(const State &state, GameState &gs, Resources &res)
     body.maxSpeedY = 1800;
     body.collider = {.x = 9, .y = 8, .w = 14, .h = 16};
     body.data.body.number = gs.layers[LAYER_IDX_BODY].size();
+    body.data.body.baseHealth = 75;
+    body.data.body.currentHealth = 75;
+    body.data.body.state = BodyState::activitive;
 
     gs.layers[LAYER_IDX_BODY].push_back(body);
 }
@@ -172,7 +175,7 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
                     objB.data.bullet.state = BulletState::colliding;
                     gs.potato_count -= 1;
 
-                    objA.data.player.hurt(objB.data.bullet.attack, res);
+                    objA.data.player.hurt(objB.data.bullet.attack, gs, res);
                     playSound(res.potato_boom_sound);
                 }
                 break;
@@ -185,7 +188,7 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
                     objB.collideable = false;
                     objB.data.bullet.state = BulletState::inactive;
 
-                    objA.data.player.hurt(objB.data.bullet.attack, res);
+                    objA.data.player.hurt(objB.data.bullet.attack, gs, res);
                 }
             }
             default:
@@ -219,6 +222,42 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
                 objA.velocity.y = 0;
             }
             break;
+        }
+        case ObjectType::bullet:
+        {
+            switch (objB.data.bullet.type)
+            {
+            case BulletType::potatoMine:
+            {
+                if (objB.data.bullet.state == BulletState::idle)
+                {
+                    objB.tex = res.potato_boom;
+                    objB.collideable = false;
+                    objB.data.bullet.timer.reset();
+                    objB.data.bullet.timer.setLength(3);
+                    objB.currentAnimation = -1;
+                    objB.data.bullet.state = BulletState::colliding;
+                    gs.potato_count -= 1;
+
+                    objA.data.body.hurt(objB.data.bullet.attack, gs, res);
+                    playSound(res.potato_boom_sound);
+                }
+                break;
+            }
+            case BulletType::Frying:
+            {
+                if (objB.data.bullet.state == BulletState::moving)
+                {
+                    objB.tex = nullptr;
+                    objB.collideable = false;
+                    objB.data.bullet.state = BulletState::inactive;
+
+                    objA.data.body.hurt(objB.data.bullet.attack, gs, res);
+                }
+            }
+            default:
+                break;
+            }
         }
         default:
             break;
@@ -269,8 +308,9 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
 
     if (obj.type == ObjectType::bullet)
     {
-       updateBullet(state, gs, res, obj, deltaTime);
+        updateBullet(state, gs, res, obj, deltaTime);
     }
+
     for (int i = 0; i < gs.layers.size(); ++i)
     {
         for (int j = 0; j < gs.layers[i].size(); ++j)
@@ -525,7 +565,7 @@ void updateBody(const State &state, GameState &gs, Resources &res, GameObject &o
 
 void updateBullet(const State &state, GameState &gs, Resources &res, GameObject &obj, float deltaTime)
 {
-     switch (obj.data.bullet.type)
+    switch (obj.data.bullet.type)
     {
     case BulletType::potatoMine:
     {
@@ -680,7 +720,7 @@ void createMap(const State &state, GameState &gs, const Resources &res)
     assert(gs.playerIndex != -1);
 }
 
-void handleKayInput(const State &state, GameState &gs, GameObject &obj, Resources &res, float deltatime,
+void handleKeyInput(const State &state, GameState &gs, GameObject &obj, Resources &res, float deltatime,
                     SDL_Scancode key, bool keydown)
 {
     if (obj.type == ObjectType::player)
@@ -1007,7 +1047,7 @@ void drawPlayerHealth(State &state, GameState &gs, Resources &res)
     static int pre_baseHealth = data.baseHealth;
     static int pre_extraHealth = data.extraHealth;
     static int pre_currentHealth = data.currentHealth;
-    
+
     const float baseX = 15.0f;
     const float baseY = static_cast<float>(state.logH) - 30.0f;
     const float height = 15.0f;
@@ -1017,8 +1057,7 @@ void drawPlayerHealth(State &state, GameState &gs, Resources &res)
         .x = baseX,
         .y = baseY,
         .w = baseLength,
-        .h = height
-    };
+        .h = height};
 
     SDL_SetRenderDrawColor(state._renderer, 178, 34, 34, 255);
     SDL_RenderFillRect(state._renderer, &baseRect);
@@ -1029,8 +1068,7 @@ void drawPlayerHealth(State &state, GameState &gs, Resources &res)
             .x = baseX,
             .y = baseY,
             .w = currentLength,
-            .h = height
-        };
+            .h = height};
         SDL_SetRenderDrawColor(state._renderer, 225, 225, 0, 255);
         SDL_RenderFillRect(state._renderer, &currentRect);
     }
@@ -1041,8 +1079,7 @@ void drawPlayerHealth(State &state, GameState &gs, Resources &res)
             .x = baseX,
             .y = baseY,
             .w = extraLength,
-            .h = height
-        };
+            .h = height};
         SDL_SetRenderDrawBlendMode(state._renderer, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(state._renderer, 0, 225, 225, 210);
         SDL_RenderFillRect(state._renderer, &extraRect);
@@ -1053,7 +1090,7 @@ void drawPlayerHealth(State &state, GameState &gs, Resources &res)
     text << "HP: " << gs.player().data.player.currentHealth;
     if (gs.player().data.player.extraHealth > 0)
     {
-      text << " + " << gs.player().data.player.extraHealth;
+        text << " + " << gs.player().data.player.extraHealth;
     }
     text << " / " << gs.player().data.player.baseHealth;
 
@@ -1074,12 +1111,12 @@ void edgeDetection(const State &state, GameState &gs, GameObject &obj)
     {
         switch (obj.type)
         {
-            case ObjectType::player:
-            {
-                checkPointEdge(obj.position);
-            }
-            case ObjectType::body:
-            {
+        case ObjectType::player:
+        {
+            checkPointEdge(obj.position);
+        }
+        case ObjectType::body:
+        {
             auto &bodys = gs.layers[LAYER_IDX_BODY];
             for (int i = 0; i < bodys.size(); ++i)
             {
@@ -1096,7 +1133,7 @@ void edgeDetection(const State &state, GameState &gs, GameObject &obj)
                 }
             }
             break;
-            }
+        }
         default:
             break;
         }
@@ -1140,4 +1177,25 @@ void drawWarning(const State &state, GameState &gs, Resources &res, glm::vec2 po
     SDL_FRect dst = {.x = screenX, .y = screenY, .w = TILE_SIZE, .h = TILE_SIZE};
     SDL_FPoint cen = {.x = TILE_SIZE / 2, .y = TILE_SIZE / 2};
     SDL_RenderTextureRotated(state._renderer, res.warning, &src, &dst, 0, &cen, SDL_FLIP_NONE);
+}
+
+void delectDeadBody(GameState &gs)
+{
+    auto &bodys = gs.layers[LAYER_IDX_BODY];
+    int pre_size = bodys.size();
+    bodys.erase(std::remove_if(bodys.begin(), bodys.end(), [](GameObject &obj){
+        if (obj.data.body.state == BodyState::dead)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }), bodys.end());
+    if (pre_size > bodys.size())
+    {
+        gs.bodys_changed = true;
+        gs.player().data.player.baseHealth -= 5 * (pre_size - bodys.size());
+    }
 }

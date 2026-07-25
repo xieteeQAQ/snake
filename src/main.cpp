@@ -32,11 +32,11 @@ int main(int argc, char **argv)
     if (!TTF_Init())
     {
         SDL_Log("TTF init failed: %s", SDL_GetError());
-    }   
+    }
 
     State state;
     state.init();
-    SDL_SetRenderVSync(state._renderer,1);
+    SDL_SetRenderVSync(state._renderer, 1);
 
     Resources res;
     res.load(state);
@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     createMap(state, gs, res);
     uint64_t prevTime = SDL_GetTicks();
 
-    BulletGenerater BG_circleStickyRice(3, 1, res.warning, BulletGenerater::Type::circleStickyRice);
+    BulletGenerater BG_circleStickyRice(1, 1, res.warning, BulletGenerater::Type::circleStickyRice);
     gs.bulletGeneraters.push_back(BG_circleStickyRice);
 
     bool running = true;
@@ -56,7 +56,7 @@ int main(int argc, char **argv)
         float deltaTime = (nowTime - prevTime) / 1000.0f;
         prevTime = nowTime;
         playtime += deltaTime;
-        
+
         SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
         SDL_RenderClear(state._renderer);
         drawBackground(state, gs, gs.player(), res.background);
@@ -81,12 +81,12 @@ int main(int argc, char **argv)
                 }
                 case SDL_EVENT_KEY_DOWN:
                 {
-                    handleKayInput(state, gs, gs.player(), res, deltaTime, event.key.scancode, true);
+                    handleKeyInput(state, gs, gs.player(), res, deltaTime, event.key.scancode, true);
                     break;
                 }
                 case SDL_EVENT_KEY_UP:
                 {
-                    handleKayInput(state, gs, gs.player(), res, deltaTime, event.key.scancode, false);
+                    handleKeyInput(state, gs, gs.player(), res, deltaTime, event.key.scancode, false);
                     break;
                 }
                 }
@@ -95,7 +95,15 @@ int main(int argc, char **argv)
             generateFood(state, gs, res, deltaTime);
             generatePotatoMine(state, gs, res, deltaTime);
             updateBulletGenerater(state, gs, res, deltaTime);
-            
+
+            for (int i = 0; i < gs.timers.size(); ++i)
+            {
+                if (!gs.timers[i].isTimeout())
+                {
+                    gs.timers[i].step(deltaTime);
+                }
+            }
+
             for (int i = 0; i < gs.layers.size(); ++i)
             {
                 for (int j = 0; j < gs.layers[i].size(); ++j)
@@ -119,10 +127,15 @@ int main(int argc, char **argv)
                 }
                 for (int i = BULLET_IDX_FRYING; i < gs.bullets.size(); ++i)
                 {
-                    gs.bullets[i].erase(std::remove_if(gs.bullets[i].begin(), gs.bullets[i].end(), [](GameObject &b){
-                        return b.data.bullet.state == BulletState::inactive;
-                    }), gs.bullets[i].end());
+                    gs.bullets[i].erase(std::remove_if(gs.bullets[i].begin(), gs.bullets[i].end(), [](GameObject &b)
+                                                       { return b.data.bullet.state == BulletState::inactive; }),
+                                        gs.bullets[i].end());
                 }
+            }
+
+            if (!gs.layers[LAYER_IDX_BODY].empty())
+            {
+                delectDeadBody(gs);
             }
 
             if (gs.player().data.player.currentHealth == 0)
@@ -136,17 +149,17 @@ int main(int argc, char **argv)
             {
                 switch (event.type)
                 {
-                    case SDL_EVENT_QUIT:
-                    {
-                        running = false;
-                        break;
-                    }
-                    case SDL_EVENT_WINDOW_RESIZED:
-                    {
-                        state.width = event.window.data1;
-                        state.height = event.window.data2;
-                        break;
-                    }
+                case SDL_EVENT_QUIT:
+                {
+                    running = false;
+                    break;
+                }
+                case SDL_EVENT_WINDOW_RESIZED:
+                {
+                    state.width = event.window.data1;
+                    state.height = event.window.data2;
+                    break;
+                }
                 }
             }
         }
@@ -154,7 +167,7 @@ int main(int argc, char **argv)
         for (auto &bullet : gs.bullets)
         {
             for (auto &b : bullet)
-            drawObject(state, gs, b, deltaTime);
+                drawObject(state, gs, b, deltaTime);
         }
 
         for (auto &layer : gs.layers)
@@ -173,7 +186,7 @@ int main(int argc, char **argv)
         }
         drawUI(state, gs, res);
         SDL_RenderPresent(state._renderer);
-        if(frameDelay > deltaTime)
+        if (frameDelay > deltaTime)
         {
             SDL_Delay(frameDelay - deltaTime);
         }

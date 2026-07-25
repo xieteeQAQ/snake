@@ -26,6 +26,8 @@ public:
     void setTimeout(bool set) { timeout = set; };
     void setLength(float _length) { length = _length; };
 
+    
+
 private:
     float time;
     float length;

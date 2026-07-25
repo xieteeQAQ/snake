@@ -1,7 +1,7 @@
 #include "gaobject.hpp"
 #include "snake.hpp"
 
-void PlayerData::hurt(int amount, Resources &res)
+void PlayerData::hurt(int amount, GameState &gs, Resources &res)
 {
     int remainingAmount = amount;
     if (extraHealth)
@@ -21,7 +21,12 @@ void PlayerData::hurt(int amount, Resources &res)
     {
         currentHealth = currentHealth - remainingAmount < 0 ? 0 : currentHealth - remainingAmount;
     }
-    playSound(res.groups[GROUP_INDEX_PLAYERHURT], -1);
+
+    if (gs.timers[TIMER_PLAYER_HURT_SOUNDEFFTECT].isTimeout())
+    {
+        playSound(res.groups[GROUP_INDEX_PLAYERHURT], -1);
+        gs.timers[TIMER_PLAYER_HURT_SOUNDEFFTECT].reset();
+    }
 }
 
 void PlayerData::treat(int amount, Resources &res)
@@ -68,3 +73,17 @@ void PlayerData::consumeBody(GameState &gs, Resources &res, int amount)
     gs.player().data.player.treat(treatAmount * amount, res);
 }
 
+void BodyData::hurt(int amount, GameState &gs, Resources &res)
+{
+    int remainingAmount = amount;
+
+    if (remainingAmount > 0)
+    {
+        currentHealth = currentHealth - remainingAmount < 0 ? 0 : currentHealth - remainingAmount;
+    }
+
+    if (currentHealth <= 0)
+    {
+        state = BodyState::dead;
+    }
+}

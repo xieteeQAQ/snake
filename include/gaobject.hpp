@@ -19,7 +19,8 @@ enum PlayerState
 
 enum BodyState
 {
-    activitive
+    activitive,
+    dead
 };
 
 enum BulletState
@@ -38,10 +39,14 @@ struct BodyData
     Ruler ruler{32};
     std::deque<glm::vec2> points{};
     unsigned int number = 0;
+    int baseHealth;
+    int currentHealth;
 
     BodyData() : state(BodyState::activitive)
     {
     }
+
+    void hurt(int amount, GameState &gs, Resources &res);
 };
 
 struct PlayerData
@@ -60,7 +65,7 @@ struct PlayerData
     {
     }
 
-    void hurt(int amount, Resources &res);
+    void hurt(int amount, GameState &gs, Resources &res);
 
     void treat(int amount, Resources &res);
 
