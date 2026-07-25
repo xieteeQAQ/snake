@@ -1,5 +1,10 @@
 #include "snake.hpp"
 
+const float LEFTEDGE = 443;
+const float RIGHTEDGE = 1732;
+const float UPPEREDGE = 159;
+const float LOWERLEFTEDGE = 998;
+
 /*
     x (443, 1732)
     y (159, 988)
@@ -24,7 +29,7 @@ void checkPointEdge(glm::vec2 &point)
     }
 }
 
-constexpr float TILE_SIZE = 32;
+const float TILE_SIZE = 32;
 void drawObject(const State &state, GameState &gs, GameObject &obj, float deltaTime)
 {
     if (obj.type == ObjectType::bullet && obj.data.bullet.state == BulletState::inactive)
@@ -266,7 +271,6 @@ void update(const State &state, GameState &gs, Resources &res, GameObject &obj, 
     {
        updateBullet(state, gs, res, obj, deltaTime);
     }
-
     for (int i = 0; i < gs.layers.size(); ++i)
     {
         for (int j = 0; j < gs.layers[i].size(); ++j)
@@ -1121,25 +1125,6 @@ void updateMapViewPort(State &state, GameState &gs, GameObject &obj, float delta
     }
 }
 
-void createCircleBullet(State &state, GameState &gs, Resources &res, SDL_Texture *tex, const float &x, const float &y, glm::vec2 velocity, SDL_FRect collider, int attack, int amount, float deltatime)
-{
-    for (int i = 0; i < amount; ++i)
-    {
-        GameObject bullet;
-        bullet.setType(ObjectType::bullet);
-        bullet.tex = tex;
-        bullet.collider = collider;
-        bullet.position = glm::vec2(x, y);
-        bullet.velocity = velocity;
-        bullet.currentAnimation = -1;
-        bullet.angle = 360.0f / static_cast<float>(i + 1);
-        bullet.data.bullet.attack = attack;
-        bullet.data.bullet.state = BulletState::moving;
-        bullet.data.bullet.type = BulletType::Frying;
-        gs.bullets[BULLET_IDX_FRYING].push_back(bullet);
-    }
-}
-
 bool outOfRange(GameObject &obj)
 {
     bool OutOfRangeX = obj.position.x < LEFTEDGE || obj.position.x > RIGHTEDGE;
@@ -1147,7 +1132,7 @@ bool outOfRange(GameObject &obj)
     return OutOfRangeX || OutOfRangeY;
 }
 
-void drawWarning(State &state, GameState &gs, Resources &res, glm::vec2 position)
+void drawWarning(const State &state, GameState &gs, Resources &res, glm::vec2 position)
 {
     float screenX = position.x - gs.mapViewport.x;
     float screenY = position.y - gs.mapViewport.y;

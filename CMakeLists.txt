@@ -4,9 +4,10 @@ project(snake)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(main src/main.cpp src/State.cpp src/Food.cpp src/Skills.cpp
+add_executable(main src/main.cpp src/State.cpp src/Skills.cpp
     src/snake.cpp
-    src/gaobject.cpp)
+    src/gaobject.cpp
+    src/BulletGenerater.cpp)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -fsanitize=address -fno-omit-frame-pointer")
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=address")

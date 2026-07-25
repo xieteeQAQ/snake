@@ -5,7 +5,6 @@
 #include <thread>
 #include <chrono>
 #include "State.hpp"
-#include "Food.hpp"
 #include "snake.hpp"
 #include "gaobject.hpp"
 
@@ -46,6 +45,9 @@ int main(int argc, char **argv)
     createMap(state, gs, res);
     uint64_t prevTime = SDL_GetTicks();
 
+    BulletGenerater BG_circleStickyRice(3, 1, res.warning, BulletGenerater::Type::circleStickyRice);
+    gs.bulletGeneraters.push_back(BG_circleStickyRice);
+
     bool running = true;
     playBGM(res.Graze_The_Roof);
     while (running)
@@ -55,6 +57,10 @@ int main(int argc, char **argv)
         prevTime = nowTime;
         playtime += deltaTime;
         
+        SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
+        SDL_RenderClear(state._renderer);
+        drawBackground(state, gs, gs.player(), res.background);
+
         SDL_Event event{0};
         if (gs.player().data.player.currentHealth != 0)
         {
@@ -88,39 +94,7 @@ int main(int argc, char **argv)
 
             generateFood(state, gs, res, deltaTime);
             generatePotatoMine(state, gs, res, deltaTime);
-
-            static Timer circleBullet_timer(3);
-            static Timer warning_timer(1);
-            static float X = 0;
-            static float Y = 0;
-            circleBullet_timer.step(deltaTime);
-            static bool position = false;
-            if (circleBullet_timer.isTimeout())
-            {
-                if (!position)
-                {
-                    std::mt19937 generater(rd());
-                    std::uniform_int_distribution<int> distX(LEFTEDGE, RIGHTEDGE);
-                    std::uniform_int_distribution<int> distY(UPPEREDGE, LOWERLEFTEDGE);
-                    X = static_cast<float>(distX(generater));
-                    Y = static_cast<float>(distY(generater));
-                    position = true;
-                }
-                warning_timer.step(deltaTime);
-                if (warning_timer.isTimeout())
-                {
-                    glm::vec2 v = {5.0f, 5.0f};
-                    SDL_FRect c = {.x = 13, .y = 10, .w = 6, .h = 12};
-                    createCircleBullet(state, gs, res, res.bullet_particle, X, Y, v, c, 10, 10, deltaTime);
-                    warning_timer.reset();
-                    circleBullet_timer.reset();
-                    position = false;
-                }
-                else
-                {
-                    drawWarning(state, gs, res, glm::vec2{X, Y});
-                }
-            }
+            updateBulletGenerater(state, gs, res, deltaTime);
             
             for (int i = 0; i < gs.layers.size(); ++i)
             {
@@ -176,9 +150,6 @@ int main(int argc, char **argv)
                 }
             }
         }
-        SDL_SetRenderDrawColor(state._renderer, 30, 30, 30, 255);
-        SDL_RenderClear(state._renderer);
-        drawBackground(state, gs, gs.player(), res.background);
 
         for (auto &bullet : gs.bullets)
         {

@@ -17,16 +17,20 @@
 #include "Timer.hpp"
 #include "State.hpp"
 #include "Animation.hpp"
+#include "BulletGenerater.hpp"
+
+struct BulletGenerater;
 
 extern bool debug;
 extern bool collision_box;
 extern std::random_device rd;
 extern float playtime;
+extern const float TILE_SIZE;
 
-constexpr float LEFTEDGE = 443;
-constexpr float RIGHTEDGE = 1732;
-constexpr float UPPEREDGE = 159;
-constexpr float LOWERLEFTEDGE = 998;
+extern const float LEFTEDGE;
+extern const float RIGHTEDGE;
+extern const float UPPEREDGE;
+extern const float LOWERLEFTEDGE;
 
 constexpr size_t GROUP_INDEX_BGM = 0;
 constexpr size_t GROUP_INDEX_SPRING = 1;
@@ -39,7 +43,7 @@ struct Resources
     std::vector<Animation> potatoAnims;
 
     std::vector<SDL_Texture *> texs;
-    SDL_Texture *tex_standby, *food, *background, *QAQ, *body, *potato_0, *potato_1, *potato_2, *potato_boom, *bullet_particle,
+    SDL_Texture *tex_standby, *food, *background, *QAQ, *body, *potato_0, *potato_1, *potato_2, *potato_boom, *stickyRice,
     *warning;
 
     std::vector<std::vector<MIX_Track*>> groups;
@@ -103,7 +107,7 @@ struct Resources
         potato_1 = loadTex(state._renderer, "image/potato/potato_1.png");
         potato_2 = loadTex(state._renderer, "image/potato/potato_2.png");
         potato_boom = loadTex(state._renderer, "image/potato/potato_boom.png");
-        bullet_particle = loadTex(state._renderer, "image/bullet_particle.png");
+        stickyRice = loadTex(state._renderer, "image/stickyRice.png");
         warning = loadTex(state._renderer, "image/warning.png");
         
         std::vector<MIX_Track*> bgm_group;
@@ -170,6 +174,7 @@ struct GameState
 {
     std::array<std::vector<GameObject>, 4> layers;
     std::array<std::vector<GameObject>, 2> bullets;
+    std::vector<BulletGenerater> bulletGeneraters;
     int playerIndex;
     int food_count;
     int potato_count;
@@ -254,6 +259,5 @@ void drawUI(State &state, GameState &gs, Resources &res);
 void drawPlayerHealth(State &state, GameState &gs, Resources &res);
 void edgeDetection(const State &state, GameState &gs, GameObject &obj);
 void updateMapViewPort(State &state, GameState &gs, GameObject &obj, float deltatime);
-void createCircleBullet(State &state, GameState &gs, Resources &res, SDL_Texture *tex, const float &x, const float &y, glm::vec2 velocity, SDL_FRect collider, int attack, int amount, float deltatime);
 bool outOfRange(GameObject &obj);
-void drawWarning(State &state, GameState &gs, Resources &res, glm::vec2 position);
+void drawWarning(const State &state, GameState &gs, Resources &res, glm::vec2 position);
