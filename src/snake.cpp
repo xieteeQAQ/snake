@@ -175,8 +175,9 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
                     objB.data.bullet.state = BulletState::colliding;
                     gs.potato_count -= 1;
 
-                objA.data.player.hurt(objB.data.bullet.attack, gs, res);
+                    objA.data.player.hurt(objB.data.bullet.attack, gs, res);
                     playSound(res.potato_boom_sound);
+                    break;
                 }
                 break;
             }
@@ -239,8 +240,20 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
                     objB.data.bullet.state = BulletState::colliding;
                     gs.potato_count -= 1;
 
-                objA.data.body.hurt(objB.data.bullet.attack, gs, res);
+                    auto &bodys = gs.layers[LAYER_IDX_BODY];
+                    for (int i = 0; i < bodys.size(); ++i)
+                    {
+                        auto &b = bodys[i];
+                        float distX = (b.position.x + b.collider.x) - (objB.position.x + objB.collider.x);
+                        float distY = (b.position.y + b.collider.y) - (objB.position.y + objB.collider.y);
+                        float dist = std::sqrtf(distX * distX + distY * distY);
+                        if (dist <= 48)
+                        {
+                            b.data.body.hurt(objB.data.bullet.attack, gs, res);
+                        }
+                    }
                     playSound(res.potato_boom_sound);
+                    break;
                 }
                 break;
             }
@@ -1193,6 +1206,10 @@ void delectDeadBody(GameState &gs)
             return false;
         }
     }), bodys.end());
+    if (!bodys.empty() && !bodys.back().data.body.points.empty())
+    {
+        bodys.back().data.body.points.clear();
+    }
     if (pre_size > bodys.size())
     {
         gs.bodys_changed = true;
