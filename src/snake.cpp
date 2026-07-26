@@ -175,7 +175,7 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
                     objB.data.bullet.state = BulletState::colliding;
                     gs.potato_count -= 1;
 
-                    objA.data.player.hurt(objB.data.bullet.attack, gs, res);
+                objA.data.player.hurt(objB.data.bullet.attack, gs, res);
                     playSound(res.potato_boom_sound);
                 }
                 break;
@@ -239,7 +239,7 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
                     objB.data.bullet.state = BulletState::colliding;
                     gs.potato_count -= 1;
 
-                    objA.data.body.hurt(objB.data.bullet.attack, gs, res);
+                objA.data.body.hurt(objB.data.bullet.attack, gs, res);
                     playSound(res.potato_boom_sound);
                 }
                 break;
@@ -993,7 +993,7 @@ void generatePotatoMine(State &state, GameState &gs, Resources &res, float delta
 
     GameObject potato;
     potato.setType(ObjectType::bullet);
-    potato.animation = res.potatoAnims;
+    potato.animation = res.bulletAnims;
     potato.tex = res.potato_0;
     potato.currentAnimation = -1;
     potato.position = glm::vec2(x, y);
