@@ -40,7 +40,8 @@ struct Resources
 {
     const size_t ANIM_POTATO_GROW = 0;
     const size_t ANIM_POTATO_IDLE = 1;
-    std::vector<Animation> potatoAnims;
+    const size_t ANIM_STICKYRICE_SPIN = 2;
+    std::vector<Animation> bulletAnims;
 
     std::vector<SDL_Texture *> texs;
     SDL_Texture *tex_standby, *food, *background, *QAQ, *body, *potato_0, *potato_1, *potato_2, *potato_boom, *stickyRice,
@@ -93,20 +94,21 @@ struct Resources
 
     void load(State &state)
     {
-        potatoAnims.resize(2);
-        potatoAnims[ANIM_POTATO_GROW] = Animation(16, 0.59);
-        potatoAnims[ANIM_POTATO_IDLE] = Animation(16, 0.59);
+        bulletAnims.resize(3);
+        bulletAnims[ANIM_POTATO_GROW] = Animation(16, 0.59);
+        bulletAnims[ANIM_POTATO_IDLE] = Animation(16, 0.59);
+        bulletAnims[ANIM_STICKYRICE_SPIN] = Animation(2, 0.3);
 
         tex_standby = loadTex(state._renderer, "image/player_normal.png");
         food = loadTex(state._renderer, "image/otto.png");
         background = loadTex(state._renderer, "image/Frontyard.png");
         QAQ = loadTex(state._renderer, "image/QAQ.png");
         body = loadTex(state._renderer, "image/body_chicken.png");
-        potato_0 = loadTex(state._renderer, "image/potato/potato_0.png");
-        potato_1 = loadTex(state._renderer, "image/potato/potato_1.png");
-        potato_2 = loadTex(state._renderer, "image/potato/potato_2.png");
-        potato_boom = loadTex(state._renderer, "image/potato/potato_boom.png");
-        stickyRice = loadTex(state._renderer, "image/stickyRice.png");
+        potato_0 = loadTex(state._renderer, "image/bullets/potato/potato_0.png");
+        potato_1 = loadTex(state._renderer, "image/bullets/potato/potato_1.png");
+        potato_2 = loadTex(state._renderer, "image/bullets/potato/potato_2.png");
+        potato_boom = loadTex(state._renderer, "image/bullets/potato/potato_boom.png");
+        stickyRice = loadTex(state._renderer, "image/bullets/stickyRice.png");
         warning = loadTex(state._renderer, "image/warning.png");
 
         std::vector<MIX_Track *> bgm_group;

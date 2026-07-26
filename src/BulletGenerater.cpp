@@ -67,7 +67,8 @@ void BulletGenerater::createCircleBullet(const State &state, GameState &gs, Reso
         bullet.collider = collider;
         bullet.position = position;
         bullet.velocity = velocity;
-        bullet.currentAnimation = -1;
+        bullet.animation = res.bulletAnims;
+        bullet.currentAnimation = res.ANIM_STICKYRICE_SPIN;
         bullet.angle = 360.0f / static_cast<float>(i + 1);
         bullet.data.bullet.attack = attack;
         bullet.data.bullet.state = BulletState::moving;
