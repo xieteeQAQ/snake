@@ -183,6 +183,7 @@ struct GameState
     int food_count;
     int potato_count;
     int eat;
+    int score;
     SDL_FRect mapViewport;
     GameObject n;
     bool bodys_changed;
@@ -195,6 +196,7 @@ struct GameState
         food_count = 0;
         potato_count = 0;
         eat = 0;
+        score = 0;
         n.type = ObjectType::nullobj;
         bodys_changed = false;
 
@@ -302,6 +304,9 @@ void drawUI(State &state, GameState &gs, Resources &res);
 
 // draw player's health informaion
 void drawPlayerHealth(State &state, GameState &gs, Resources &res);
+
+// draw score
+void drawScore(State &state, GameState &gs, Resources &res);
 
 // detect the object's position, and correct it if if beyonds the map edge
 void edgeDetection(const State &state, GameState &gs, GameObject &obj);

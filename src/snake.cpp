@@ -129,6 +129,7 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
         case ObjectType::food:
         {
             gs.player().data.player.grow_counter.step(1);
+            gs.score += 1;
             if (gs.player().data.player.grow_counter.isOver())
             {
                 int baseHealthAmount = 5;
@@ -136,6 +137,7 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
                 gs.player().data.player.grow_counter.reset();
                 gs.player().data.player.increaseBaseHealth(baseHealthAmount);
                 gs.player().data.player.increaseExtraHealth(extraHealthAmount);
+                gs.score += 5;
                 createBody(state, gs, res);
                 playSound(res.burp);
             }
@@ -1047,6 +1049,7 @@ void generatePotatoMine(State &state, GameState &gs, Resources &res, float delta
 void drawUI(State &state, GameState &gs, Resources &res)
 {
     drawPlayerHealth(state, gs, res);
+    drawScore(state, gs, res);
 }
 
 void drawPlayerHealth(State &state, GameState &gs, Resources &res)
@@ -1108,8 +1111,21 @@ void drawPlayerHealth(State &state, GameState &gs, Resources &res)
     text << " / " << gs.player().data.player.baseHealth;
 
     TTF_Text *health_amount = TTF_CreateText(state._engine, res.hpFont, text.str().c_str(), 0);
-    TTF_DrawRendererText(health_amount, baseX, state.logH - baseY_health_amount);
+    TTF_DrawRendererText(health_amount, baseX, state.logH - 55.0f);
     TTF_DestroyText(health_amount);
+}
+
+void drawScore(State &state, GameState &gs, Resources &res)
+{
+    const float baseX = 15.0f;
+    const float baseY = static_cast<float>(state.logH) - 80.0f;
+
+    std::stringstream text;
+    text << "SCORE: " << gs.score;
+
+    TTF_Text *Text = TTF_CreateText(state._engine, res.hpFont, text.str().c_str(), 0);
+    TTF_DrawRendererText(Text, baseX, baseY);
+    TTF_DestroyText(Text);
 }
 
 void edgeDetection(const State &state, GameState &gs, GameObject &obj)
