@@ -630,8 +630,8 @@ void updateBullet(const State &state, GameState &gs, Resources &res, GameObject 
     }
     case BulletType::Frying:
     {
-        obj.position.x += std::sinf(obj.angle) * obj.velocity.x;
-        obj.position.y += std::cosf(obj.angle) * obj.velocity.y;
+        obj.position.x += std::sinf(obj.angle) * obj.velocity.x * deltaTime;
+        obj.position.y += std::cosf(obj.angle) * obj.velocity.y * deltaTime;
     }
     default:
         break;

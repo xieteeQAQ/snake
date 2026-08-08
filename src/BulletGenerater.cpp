@@ -26,7 +26,7 @@ void updateBulletGenerater(const State &state, GameState &gs, Resources &res, fl
                     case BulletGenerater::Type::circleStickyRice:
                     {
                         bg.state = BulletGenerater::BgState::waiting;
-                        glm::vec2 velocity = {5.0f, 5.0f};
+                        glm::vec2 velocity = {110.0f, 110.0f};
                         SDL_FRect collision = {.x = 13, .y = 10, .w = 6, .h = 12};
                         int attack = 10;
                         int amount = 10;
@@ -59,6 +59,13 @@ void BulletGenerater::putWarning(const State &state, GameState &gs)
 
 void BulletGenerater::createCircleBullet(const State &state, GameState &gs, Resources &res, SDL_Texture *tex, const glm::vec2 &position,glm::vec2 velocity, SDL_FRect collider, int attack, int amount)
 {
+    if (amount <= 0)
+    {
+        SDL_Log("%s: %s", "createCircleBullet", "amout <= 0");
+        return;
+    }
+
+    float interval = 360.0f / static_cast<float>(amount);
     for (int i = 0; i < amount; ++i)
     {
         GameObject bullet;
@@ -69,7 +76,7 @@ void BulletGenerater::createCircleBullet(const State &state, GameState &gs, Reso
         bullet.velocity = velocity;
         bullet.animation = res.bulletAnims;
         bullet.currentAnimation = res.ANIM_STICKYRICE_SPIN;
-        bullet.angle = 360.0f / static_cast<float>(i + 1);
+        bullet.angle = interval * static_cast<float>(i + 1);
         bullet.data.bullet.attack = attack;
         bullet.data.bullet.state = BulletState::moving;
         bullet.data.bullet.type = BulletType::Frying;
