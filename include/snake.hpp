@@ -45,7 +45,7 @@ struct Resources
 
     std::vector<SDL_Texture *> texs;
     SDL_Texture *tex_standby, *food, *background, *QAQ, *body, *potato_0, *potato_1, *potato_2, *potato_boom, *stickyRice,
-        *warning;
+        *warning, *nailong;
 
     std::vector<std::vector<MIX_Track *>> groups;
     std::vector<MIX_Track *> tracks;
@@ -110,6 +110,7 @@ struct Resources
         potato_boom = loadTex(state._renderer, "image/bullets/potato/potato_boom.png");
         stickyRice = loadTex(state._renderer, "image/bullets/stickyRice.png");
         warning = loadTex(state._renderer, "image/warning.png");
+        nailong = loadTex(state._renderer, "image/nailong.png");
 
         std::vector<MIX_Track *> bgm_group;
         std::vector<MIX_Track *> spring_group;
@@ -171,12 +172,13 @@ constexpr size_t LAYER_IDX_FOOD = 3;
 
 constexpr size_t BULLET_IDX_POTATO = 0;
 constexpr size_t BULLET_IDX_FRYING = 1;
+constexpr size_t BULLET_IDX_TRACKING = 2;
 
 constexpr size_t TIMER_PLAYER_HURT_SOUNDEFFTECT = 0;
 struct GameState
 {
     std::array<std::vector<GameObject>, 4> layers;
-    std::array<std::vector<GameObject>, 2> bullets;
+    std::array<std::vector<GameObject>, 3> bullets;
     std::vector<BulletGenerater> bulletGeneraters;
     std::vector<Timer> timers;
     int playerIndex;

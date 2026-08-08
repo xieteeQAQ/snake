@@ -16,7 +16,8 @@ struct BulletGenerater
 {
     enum Type
     {
-        circleStickyRice
+        circleStickyRice,
+        nailong
     };
 
     enum BgState
@@ -54,6 +55,7 @@ struct BulletGenerater
     void setWarningTex(SDL_Texture *_warningTex) { warningTex = _warningTex; };
     void putWarning(const State &state, GameState &gs);
     void createCircleBullet(const State &state, GameState &gs, Resources &res, SDL_Texture *tex, const glm::vec2 &position,glm::vec2 velocity, SDL_FRect collider, int attack, int amount);
+    void createNaiLong(const State &state, GameState &gs, Resources &res, const glm::vec2 &position);
     void randomPosition();
 
     Type type;

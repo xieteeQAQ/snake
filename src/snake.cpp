@@ -44,7 +44,7 @@ void drawObject(const State &state, GameState &gs, GameObject &obj, float deltaT
     SDL_FPoint cen{.x = TILE_SIZE / 2, .y = TILE_SIZE / 2};
 
     SDL_FlipMode flipMode;
-    if (obj.type == ObjectType::player || obj.type == ObjectType::body)
+    if (obj.type == ObjectType::player || obj.type == ObjectType::body || obj.type == ObjectType::bullet)
         flipMode = obj.directionX == -1 ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
     else
         flipMode = SDL_FLIP_NONE;
@@ -632,6 +632,21 @@ void updateBullet(const State &state, GameState &gs, Resources &res, GameObject 
     {
         obj.position.x += std::sinf(obj.angle) * obj.velocity.x * deltaTime;
         obj.position.y += std::cosf(obj.angle) * obj.velocity.y * deltaTime;
+        break;
+    }
+    case BulletType::tracking:
+    {
+        GameObject &player = gs.player();
+        float distX = player.position.x - obj.position.x;
+        float distY = player.position.y - obj.position.y;
+        float dist = std::sqrtf(distX * distX + distY * distY);
+
+        obj.directionX = std::copysignf(1, distX);
+        obj.directionY = std::copysignf(1, distY);
+
+        obj.position.x += obj.velocity.x * (distX / dist) * deltaTime;
+        obj.position.y += obj.velocity.y * (distY / dist) * deltaTime;
+        break;
     }
     default:
         break;

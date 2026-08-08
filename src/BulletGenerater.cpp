@@ -34,6 +34,12 @@ void updateBulletGenerater(const State &state, GameState &gs, Resources &res, fl
                         bg.randomPosition();
                         break;
                     }
+                    case BulletGenerater::Type::nailong:
+                    {
+                        bg.state = BulletGenerater::BgState::waiting;
+                        bg.createNaiLong(state, gs, res, bg.position);
+                        bg.randomPosition();
+                    }
                     default:
                         break;
                     }
@@ -82,6 +88,21 @@ void BulletGenerater::createCircleBullet(const State &state, GameState &gs, Reso
         bullet.data.bullet.type = BulletType::Frying;
         gs.bullets[BULLET_IDX_FRYING].push_back(bullet);
     }
+}
+
+void BulletGenerater::createNaiLong(const State &state, GameState &gs, Resources &res, const glm::vec2 &position)
+{
+    GameObject nailong;
+    nailong.setType(ObjectType::bullet);
+    nailong.tex = res.nailong;
+    nailong.collider = SDL_FRect{.x = 30, .y = 8, .w = 72, .h = 118};
+    nailong.position = position;
+    nailong.velocity = glm::vec2{100.0f, 100.0f};
+    nailong.currentAnimation = -1;
+    nailong.data.bullet.attack = 0;
+    nailong.data.bullet.state = BulletState::moving;
+    nailong.data.bullet.type = BulletType::tracking;
+    gs.bullets[BULLET_IDX_TRACKING].push_back(nailong);
 }
 
 void BulletGenerater::randomPosition()

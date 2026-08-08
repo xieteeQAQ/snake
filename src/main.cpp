@@ -46,7 +46,9 @@ int main(int argc, char **argv)
     uint64_t prevTime = SDL_GetTicks();
 
     BulletGenerater BG_circleStickyRice(1, 1, res.warning, BulletGenerater::Type::circleStickyRice);
+    BulletGenerater BG_nailong(10, 0, nullptr, BulletGenerater::Type::nailong);
     gs.bulletGeneraters.push_back(BG_circleStickyRice);
+    gs.bulletGeneraters.push_back(BG_nailong);
 
     bool running = true;
     playBGM(res.Graze_The_Roof);
