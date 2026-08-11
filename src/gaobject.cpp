@@ -3,6 +3,9 @@
 
 void PlayerData::hurt(int amount, GameState &gs, Resources &res)
 {
+    if (amount <= 0)
+        return;
+
     int remainingAmount = amount;
     if (extraHealth)
     {
@@ -75,6 +78,9 @@ void PlayerData::consumeBody(GameState &gs, Resources &res, int amount)
 
 void BodyData::hurt(int amount, GameState &gs, Resources &res)
 {
+    if (amount <= 0)
+        return;
+
     int remainingAmount = amount;
 
     if (remainingAmount > 0)

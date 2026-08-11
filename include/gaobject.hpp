@@ -25,12 +25,18 @@ enum BodyState
 
 enum BulletState
 {
-    inactive, moving, colliding, idle
+    inactive,
+    moving,
+    colliding,
+    idle
 };
 
 enum BulletType
 {
-    potatoMine, Frying, tracking, none
+    potatoMine,
+    Frying,
+    nailong,
+    none
 };
 
 struct BodyData
@@ -98,10 +104,9 @@ struct bulletData
     int number;
     int attack;
 
-    bulletData() : state(BulletState::moving), type(BulletType::none) ,timer(0), number(0), attack(0) {};
-    bulletData(float length) : state(BulletState::moving), type(BulletType::none),timer(length), number(0), attack(0) {};
+    bulletData() : state(BulletState::moving), type(BulletType::none), timer(0), number(0), attack(0) {};
+    bulletData(float length) : state(BulletState::moving), type(BulletType::none), timer(length), number(0), attack(0) {};
 };
-
 
 enum ObjectType
 {

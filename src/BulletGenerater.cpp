@@ -2,6 +2,10 @@
 
 void updateBulletGenerater(const State &state, GameState &gs, Resources &res, float deltaTime)
 {
+    auto &bgs = gs.bulletGeneraters;
+    bgs.erase(std::remove_if(bgs.begin(), bgs.end(), [](BulletGenerater &bg){
+        return bg.isAlive() == false;
+    }), bgs.end());
     for (int i = 0; i < gs.bulletGeneraters.size(); ++i)
     {
         auto &bg = gs.bulletGeneraters[i];
@@ -25,8 +29,19 @@ void updateBulletGenerater(const State &state, GameState &gs, Resources &res, fl
                     {
                     case BulletGenerater::Type::circleStickyRice:
                     {
-                        bg.state = BulletGenerater::BgState::waiting;
                         glm::vec2 velocity = {110.0f, 110.0f};
+                        bg.state = BulletGenerater::BgState::waiting;
+                        SDL_FRect collision = {.x = 13, .y = 10, .w = 6, .h = 12};
+                        int attack = 10;
+                        int amount = 10;
+                        bg.createCircleBullet(state, gs, res, res.stickyRice, bg.position, velocity, collision, attack, amount);
+                        bg.randomPosition();
+                        break;
+                    }
+                    case BulletGenerater::Type::circleStickyRice_fast:
+                    {
+                        glm::vec2 velocity = {200.0f, 200.0f};
+                        bg.state = BulletGenerater::BgState::waiting;
                         SDL_FRect collision = {.x = 13, .y = 10, .w = 6, .h = 12};
                         int attack = 10;
                         int amount = 10;
@@ -43,6 +58,8 @@ void updateBulletGenerater(const State &state, GameState &gs, Resources &res, fl
                     default:
                         break;
                     }
+                    if (bg.onetime)
+                        bg.alive = false;
                 }
                 else
                 {
@@ -63,7 +80,7 @@ void BulletGenerater::putWarning(const State &state, GameState &gs)
     SDL_RenderTextureRotated(state._renderer, warningTex, &src, &dst, 0, &cen, SDL_FLIP_NONE);
 }
 
-void BulletGenerater::createCircleBullet(const State &state, GameState &gs, Resources &res, SDL_Texture *tex, const glm::vec2 &position,glm::vec2 velocity, SDL_FRect collider, int attack, int amount)
+void BulletGenerater::createCircleBullet(const State &state, GameState &gs, Resources &res, SDL_Texture *tex, const glm::vec2 &position, glm::vec2 velocity, SDL_FRect collider, int attack, int amount)
 {
     if (amount <= 0)
     {
@@ -95,13 +112,13 @@ void BulletGenerater::createNaiLong(const State &state, GameState &gs, Resources
     GameObject nailong;
     nailong.setType(ObjectType::bullet);
     nailong.tex = res.nailong;
-    nailong.collider = SDL_FRect{.x = 30, .y = 8, .w = 72, .h = 118};
+    nailong.collider = SDL_FRect{.x = 7.25f, .y = 2.0f, .w = 18.0f, .h = 29.5f};
     nailong.position = position;
     nailong.velocity = glm::vec2{100.0f, 100.0f};
     nailong.currentAnimation = -1;
     nailong.data.bullet.attack = 0;
     nailong.data.bullet.state = BulletState::moving;
-    nailong.data.bullet.type = BulletType::tracking;
+    nailong.data.bullet.type = BulletType::nailong;
     gs.bullets[BULLET_IDX_TRACKING].push_back(nailong);
 }
 

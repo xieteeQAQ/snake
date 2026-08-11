@@ -193,6 +193,19 @@ void collisionResponse(const State &state, GameState &gs, Resources &res,
 
                     objA.data.player.hurt(objB.data.bullet.attack, gs, res);
                 }
+                break;
+            }
+            case BulletType::nailong:
+            {
+                if (objB.data.bullet.state == BulletState::moving)
+                {
+                    objB.collideable = false;
+                    objB.data.bullet.state = BulletState::colliding;
+                    objB.data.bullet.timer.reset();
+
+                    objA.data.player.hurt(objB.data.bullet.attack, gs, res);
+                }
+                break;
             }
             default:
                 break;
@@ -634,19 +647,50 @@ void updateBullet(const State &state, GameState &gs, Resources &res, GameObject 
         obj.position.y += std::cosf(obj.angle) * obj.velocity.y * deltaTime;
         break;
     }
-    case BulletType::tracking:
+    case BulletType::nailong:
     {
-        GameObject &player = gs.player();
-        float distX = player.position.x - obj.position.x;
-        float distY = player.position.y - obj.position.y;
-        float dist = std::sqrtf(distX * distX + distY * distY);
+        switch (obj.data.bullet.type)
+        {
+        case BulletType::nailong:
+        {
+            if (obj.data.bullet.state == BulletState::moving)
+            {
+                obj.data.bullet.timer.setLength(15);
+                obj.data.bullet.timer.step(deltaTime);
+                if (obj.data.bullet.timer.isTimeout())
+                {
+                    obj.tex = nullptr;
+                    obj.data.bullet.state = BulletState::inactive;
+                }
 
-        obj.directionX = std::copysignf(1, distX);
-        obj.directionY = std::copysignf(1, distY);
+                GameObject &player = gs.player();
+                float distX = player.position.x - obj.position.x;
+                float distY = player.position.y - obj.position.y;
+                float dist = std::sqrtf(distX * distX + distY * distY);
 
-        obj.position.x += obj.velocity.x * (distX / dist) * deltaTime;
-        obj.position.y += obj.velocity.y * (distY / dist) * deltaTime;
-        break;
+                obj.directionX = std::copysignf(1, distX);
+                obj.directionY = std::copysignf(1, distY);
+
+                obj.position.x += obj.velocity.x * (distX / dist) * deltaTime;
+                obj.position.y += obj.velocity.y * (distY / dist) * deltaTime;
+            }
+            else if (obj.data.bullet.state == BulletState::colliding)
+            {
+                obj.data.bullet.timer.setLength(1);
+                obj.data.bullet.timer.step(deltaTime);
+                if (obj.data.bullet.timer.isTimeout())
+                {
+                    obj.tex = nullptr;
+                    obj.data.bullet.state = BulletState::inactive;
+                    gs.bulletGeneraters.push_back(BulletGenerater(obj.position, 0, 0, nullptr, BulletGenerater::Type::circleStickyRice_fast, true));
+                    gs.bulletGeneraters.push_back(BulletGenerater(obj.position, 0.3f, 0, nullptr, BulletGenerater::Type::circleStickyRice_fast, true));
+                    gs.bulletGeneraters.push_back(BulletGenerater(obj.position, 0.6f, 0, nullptr, BulletGenerater::Type::circleStickyRice_fast, true));
+                }
+            }
+        }
+        default:
+            break;
+        }
     }
     default:
         break;
@@ -1227,7 +1271,8 @@ void delectDeadBody(GameState &gs)
 {
     auto &bodys = gs.layers[LAYER_IDX_BODY];
     int pre_size = bodys.size();
-    bodys.erase(std::remove_if(bodys.begin(), bodys.end(), [](GameObject &obj){
+    bodys.erase(std::remove_if(bodys.begin(), bodys.end(), [](GameObject &obj)
+                               {
         if (obj.data.body.state == BodyState::dead)
         {
             return true;
@@ -1235,8 +1280,8 @@ void delectDeadBody(GameState &gs)
         else
         {
             return false;
-        }
-    }), bodys.end());
+        } }),
+                bodys.end());
     if (!bodys.empty() && !bodys.back().data.body.points.empty())
     {
         bodys.back().data.body.points.clear();

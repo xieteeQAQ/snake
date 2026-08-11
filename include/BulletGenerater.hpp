@@ -12,11 +12,13 @@ extern const float LOWERLEFTEDGE;
 
 void updateBulletGenerater(const State &state, GameState &gs, Resources &res, float deltaTime);
 
-struct BulletGenerater
+class BulletGenerater
 {
+public:
     enum Type
     {
         circleStickyRice,
+        circleStickyRice_fast,
         nailong
     };
 
@@ -36,12 +38,31 @@ struct BulletGenerater
         position.x = static_cast<float>(distX(generater));
         position.y = static_cast<float>(distY(generater));
         alive = true;
+        onetime = false;
+        state = BgState::waiting;
+    };
+    BulletGenerater(const float &delayTime, const float &warningTime, SDL_Texture *warningTex, Type type, bool onetime) : delayTime(delayTime), warningTime(warningTime), warningTex(warningTex), type(type), onetime(onetime) {
+        std::mt19937 generater(rd());
+        std::uniform_int_distribution<int> distX(LEFTEDGE, RIGHTEDGE);
+        std::uniform_int_distribution<int> distY(UPPEREDGE, LOWERLEFTEDGE);
+        position.x = static_cast<float>(distX(generater));
+        position.y = static_cast<float>(distY(generater));
+        alive = true;
         state = BgState::waiting;
     };
     BulletGenerater(const glm::vec2 &position, const float &delayTime, const float &warningTime, SDL_Texture *warningTex, Type type) : position(position), delayTime(delayTime), warningTime(warningTime), warningTex(warningTex), type(type) {
         alive = true;
+        onetime = false;
         state = BgState::waiting;
     };
+    BulletGenerater(const glm::vec2 &position, const float &delayTime, const float &warningTime, SDL_Texture *warningTex, Type type, bool onetime) : position(position), delayTime(delayTime), warningTime(warningTime), warningTex(warningTex), type(type), onetime(onetime) {
+        alive = true;
+        onetime = false;
+        state = BgState::waiting;
+    };
+
+    ~BulletGenerater() = default;
+
     bool WaringIsTimeOut() const { return warningTime.isTimeout(); };
     bool delayIsTimeOut() const { return delayTime.isTimeout(); };
     void stepDelayTime(float deltaTime) { delayTime.step(deltaTime); };
@@ -65,4 +86,5 @@ struct BulletGenerater
     Timer delayTime;
     SDL_Texture *warningTex;
     bool alive;
+    bool onetime;
 };
